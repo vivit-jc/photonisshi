@@ -5,10 +5,11 @@ import { usePhotos } from '../composables/usePhotos'
 import { useComments } from '../composables/useComments'
 import { useTags } from '../composables/useTags'
 import TagChip from '../components/TagChip.vue'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const { currentUser } = useAuth()
-const { loadPhotos } = usePhotos()
-const { loadComments } = useComments()
+const { loadPhotos, deletePhoto } = usePhotos()
+const { loadComments, deleteComment } = useComments()
 const { tags, loadTags } = useTags()
 
 const loading = ref(true)
@@ -17,6 +18,10 @@ const selectedMonth = ref(getCurrentMonth())
 const selectedTagId = ref(null)
 const expandedPhoto = ref(null)
 const expandedComment = ref(null)
+const showConfirm = ref(false)
+const confirmTarget = ref(null)
+const snackbar = ref(false)
+const snackbarMsg = ref('')
 
 function getCurrentMonth() {
   const d = new Date()
@@ -117,6 +122,34 @@ onMounted(async () => {
   await loadTags(currentUser.value.id)
   await fetchData()
 })
+
+function requestDeletePhoto(photo) {
+  confirmTarget.value = { type: 'photo', item: photo }
+  showConfirm.value = true
+}
+
+function requestDeleteComment(comment) {
+  confirmTarget.value = { type: 'comment', item: comment }
+  showConfirm.value = true
+}
+
+async function handleConfirmDelete() {
+  const { type, item } = confirmTarget.value
+  try {
+    if (type === 'photo') {
+      await deletePhoto(item)
+      expandedPhoto.value = null
+    } else {
+      await deleteComment(item.id)
+      expandedComment.value = null
+    }
+    await fetchData()
+  } catch {
+    snackbarMsg.value = '削除に失敗しました'
+    snackbar.value = true
+  }
+  confirmTarget.value = null
+}
 </script>
 
 <template>
@@ -195,6 +228,13 @@ onMounted(async () => {
           <TagChip :tag="expandedPhoto.tag" />
         </v-card-text>
         <v-card-actions>
+          <v-btn
+            icon="mdi-delete-outline"
+            color="error"
+            variant="text"
+            size="small"
+            @click="requestDeletePhoto(expandedPhoto)"
+          />
           <v-spacer />
           <v-btn variant="text" @click="expandedPhoto = null">閉じる</v-btn>
         </v-card-actions>
@@ -205,17 +245,33 @@ onMounted(async () => {
     <v-dialog v-model="expandedComment" max-width="400">
       <v-card v-if="expandedComment">
         <v-card-text class="pa-4">
-          <div class="text-body-1">{{ expandedComment.content }}</div>
+          <div class="text-body-1" style="white-space: pre-wrap;">{{ expandedComment.content }}</div>
           <div class="text-caption text-grey mt-2">
             {{ formatTime(expandedComment.commented_at) }}
           </div>
         </v-card-text>
         <v-card-actions>
+          <v-btn
+            icon="mdi-delete-outline"
+            color="error"
+            variant="text"
+            size="small"
+            @click="requestDeleteComment(expandedComment)"
+          />
           <v-spacer />
           <v-btn variant="text" @click="expandedComment = null">閉じる</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <ConfirmDialog
+      v-model="showConfirm"
+      message="この項目を削除しますか？"
+      @confirm="handleConfirmDelete"
+    />
+    <v-snackbar v-model="snackbar" :timeout="3000" color="error">
+      {{ snackbarMsg }}
+    </v-snackbar>
   </v-container>
 </template>
 

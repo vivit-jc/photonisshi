@@ -115,13 +115,15 @@ async function handleConfirmDelete() {
     </div>
 
     <!-- Comment input -->
-    <div class="d-flex ga-2 mb-6">
-      <v-text-field
+    <div class="d-flex ga-2 mb-6 align-end">
+      <v-textarea
         v-model="commentText"
         label="コメントを入力"
         hide-details
         density="compact"
-        @keyup.enter="handleAddComment"
+        rows="1"
+        auto-grow
+        max-rows="5"
       />
       <v-btn
         icon="mdi-send"

@@ -49,8 +49,12 @@ CREATE POLICY "Allow all on tags" ON tags FOR ALL USING (true) WITH CHECK (true)
 CREATE POLICY "Allow all on photos" ON photos FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on comments" ON comments FOR ALL USING (true) WITH CHECK (true);
 
--- Storage: Supabase Dashboard で "photos" バケットを public で作成し、
--- 以下のポリシーを設定:
--- SELECT: true (public読み取り)
--- INSERT: true (全員アップロード可)
--- DELETE: true (全員削除可)
+-- Storage: Supabase Dashboard で "photos" バケットを public で作成後、以下を実行
+CREATE POLICY "Allow all uploads" ON storage.objects
+  FOR INSERT WITH CHECK (bucket_id = 'photos');
+CREATE POLICY "Allow all reads" ON storage.objects
+  FOR SELECT USING (bucket_id = 'photos');
+CREATE POLICY "Allow all updates" ON storage.objects
+  FOR UPDATE USING (bucket_id = 'photos');
+CREATE POLICY "Allow all deletes" ON storage.objects
+  FOR DELETE USING (bucket_id = 'photos');
