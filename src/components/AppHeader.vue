@@ -1,0 +1,55 @@
+<script setup>
+import { ref } from 'vue'
+import { useAuth } from '../composables/useAuth'
+import { useRouter } from 'vue-router'
+
+const { currentUser, clearUser } = useAuth()
+const router = useRouter()
+const drawer = ref(false)
+
+const navItems = [
+  { title: 'ダッシュボード', icon: 'mdi-view-dashboard', to: '/' },
+  { title: '画像一覧', icon: 'mdi-image-multiple', to: '/images' },
+  { title: 'タグ設定', icon: 'mdi-tag-multiple', to: '/tags' },
+]
+
+function logout() {
+  clearUser()
+  drawer.value = false
+  router.go(0)
+}
+</script>
+
+<template>
+  <v-app-bar color="primary" density="compact">
+    <v-app-bar-nav-icon @click="drawer = !drawer" />
+    <v-app-bar-title class="text-body-1 font-weight-bold">
+      photonisshi
+    </v-app-bar-title>
+    <template #append>
+      <v-chip size="small" variant="tonal" class="mr-2">
+        <v-icon start size="small">mdi-account</v-icon>
+        {{ currentUser?.username }}
+      </v-chip>
+    </template>
+  </v-app-bar>
+
+  <v-navigation-drawer v-model="drawer" temporary>
+    <v-list nav density="compact">
+      <v-list-item
+        v-for="item in navItems"
+        :key="item.to"
+        :to="item.to"
+        :prepend-icon="item.icon"
+        :title="item.title"
+        @click="drawer = false"
+      />
+      <v-divider class="my-2" />
+      <v-list-item
+        prepend-icon="mdi-logout"
+        title="ログアウト"
+        @click="logout"
+      />
+    </v-list>
+  </v-navigation-drawer>
+</template>
