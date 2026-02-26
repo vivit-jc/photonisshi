@@ -2,7 +2,7 @@
 defineProps({
   comment: { type: Object, required: true },
 })
-const emit = defineEmits(['delete'])
+const emit = defineEmits(['delete', 'edit'])
 
 function formatTime(iso) {
   const d = new Date(iso)
@@ -13,18 +13,25 @@ function formatTime(iso) {
 <template>
   <v-card variant="tonal" color="grey-lighten-4" class="comment-bubble">
     <v-card-text class="pa-3">
-      <div class="text-body-2 text-black- comment-content">{{ comment.content }}</div>
+      <div class="text-body-2 text-grey-darken-3 comment-content">{{ comment.content }}</div>
       <div class="d-flex align-center mt-1">
-        <span class="text-caption text-grey-darken-3">
+        <span class="text-caption">
           <v-icon size="small" class="mr-1">mdi-clock-outline</v-icon>
           {{ formatTime(comment.commented_at) }}
         </span>
+        <v-btn
+          icon="mdi-pencil-outline"
+          size="x-small"
+          variant="text"
+          color="grey-darken-1"
+          class="ml-1"
+          @click.stop="emit('edit')"
+        />
         <v-btn
           icon="mdi-delete-outline"
           size="x-small"
           variant="text"
           color="error"
-          class="ml-1"
           @click.stop="emit('delete')"
         />
       </div>

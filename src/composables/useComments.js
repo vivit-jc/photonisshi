@@ -53,6 +53,14 @@ export function useComments() {
     if (error) throw error
   }
 
+  async function updateComment(commentId, content) {
+    const { error } = await supabase
+      .from('comments')
+      .update({ content })
+      .eq('id', commentId)
+    if (error) throw error
+  }
+
   async function deleteComment(commentId) {
     const { error } = await supabase
       .from('comments')
@@ -61,5 +69,5 @@ export function useComments() {
     if (error) throw error
   }
 
-  return { comments, loadTodayComments, loadComments, addComment, deleteComment }
+  return { comments, loadTodayComments, loadComments, addComment, updateComment, deleteComment }
 }

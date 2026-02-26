@@ -9,7 +9,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const { currentUser } = useAuth()
 const { loadPhotos, deletePhoto } = usePhotos()
-const { loadComments, deleteComment } = useComments()
+const { loadComments, updateComment, deleteComment } = useComments()
 const { tags, loadTags } = useTags()
 
 const loading = ref(true)
@@ -22,6 +22,10 @@ const showConfirm = ref(false)
 const confirmTarget = ref(null)
 const snackbar = ref(false)
 const snackbarMsg = ref('')
+const showEditDialog = ref(false)
+const editTarget = ref(null)
+const editText = ref('')
+const editSaving = ref(false)
 
 function getCurrentMonth() {
   const d = new Date()
@@ -150,6 +154,30 @@ async function handleConfirmDelete() {
   }
   confirmTarget.value = null
 }
+
+function openEditDialog(comment) {
+  editTarget.value = comment
+  editText.value = comment.content
+  showEditDialog.value = true
+}
+
+async function handleSaveEdit() {
+  const text = editText.value.trim()
+  if (!text || !editTarget.value) return
+  editSaving.value = true
+  try {
+    await updateComment(editTarget.value.id, text)
+    showEditDialog.value = false
+    expandedComment.value = null
+    editTarget.value = null
+    await fetchData()
+  } catch {
+    snackbarMsg.value = 'コメントの更新に失敗しました'
+    snackbar.value = true
+  } finally {
+    editSaving.value = false
+  }
+}
 </script>
 
 <template>
@@ -258,8 +286,47 @@ async function handleConfirmDelete() {
             size="small"
             @click="requestDeleteComment(expandedComment)"
           />
+          <v-btn
+            icon="mdi-pencil-outline"
+            color="grey-darken-1"
+            variant="text"
+            size="small"
+            @click="openEditDialog(expandedComment)"
+          />
           <v-spacer />
           <v-btn variant="text" @click="expandedComment = null">閉じる</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- コメント編集ダイアログ -->
+    <v-dialog v-model="showEditDialog" max-width="400">
+      <v-card>
+        <v-card-title class="text-body-1 font-weight-bold">コメントを編集</v-card-title>
+        <v-card-text>
+          <v-textarea
+            v-model="editText"
+            label="コメント"
+            hide-details
+            density="compact"
+            rows="3"
+            auto-grow
+            max-rows="8"
+            autofocus
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="showEditDialog = false">キャンセル</v-btn>
+          <v-btn
+            color="primary"
+            variant="flat"
+            :loading="editSaving"
+            :disabled="!editText.trim()"
+            @click="handleSaveEdit"
+          >
+            保存
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

@@ -10,7 +10,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const { currentUser } = useAuth()
 const { photos, loadTodayPhotos, deletePhoto } = usePhotos()
-const { comments, loadTodayComments, addComment, deleteComment } = useComments()
+const { comments, loadTodayComments, addComment, updateComment, deleteComment } = useComments()
 const { openCamera, uploading } = useCamera()
 
 const commentText = ref('')
@@ -21,6 +21,10 @@ const snackbar = ref(false)
 const snackbarMsg = ref('')
 const errorDetail = ref('')
 const showErrorDialog = ref(false)
+const editTarget = ref(null)
+const editText = ref('')
+const showEditDialog = ref(false)
+const editSaving = ref(false)
 
 const today = computed(() => {
   const d = new Date()
@@ -92,6 +96,29 @@ async function handleConfirmDelete() {
   }
   confirmTarget.value = null
 }
+
+function openEditDialog(comment) {
+  editTarget.value = comment
+  editText.value = comment.content
+  showEditDialog.value = true
+}
+
+async function handleSaveEdit() {
+  const text = editText.value.trim()
+  if (!text || !editTarget.value) return
+  editSaving.value = true
+  try {
+    await updateComment(editTarget.value.id, text)
+    showEditDialog.value = false
+    editTarget.value = null
+    await loadTodayComments(currentUser.value.id)
+  } catch {
+    snackbarMsg.value = 'コメントの更新に失敗しました'
+    snackbar.value = true
+  } finally {
+    editSaving.value = false
+  }
+}
 </script>
 
 <template>
@@ -152,6 +179,7 @@ async function handleConfirmDelete() {
         <CommentBubble
           v-else
           :comment="item.data"
+          @edit="openEditDialog(item.data)"
           @delete="requestDelete('comment', item.data)"
         />
       </template>
@@ -162,6 +190,38 @@ async function handleConfirmDelete() {
       message="この項目を削除しますか？"
       @confirm="handleConfirmDelete"
     />
+    <!-- コメント編集ダイアログ -->
+    <v-dialog v-model="showEditDialog" max-width="400">
+      <v-card>
+        <v-card-title class="text-body-1 font-weight-bold">コメントを編集</v-card-title>
+        <v-card-text>
+          <v-textarea
+            v-model="editText"
+            label="コメント"
+            hide-details
+            density="compact"
+            rows="3"
+            auto-grow
+            max-rows="8"
+            autofocus
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="showEditDialog = false">キャンセル</v-btn>
+          <v-btn
+            color="primary"
+            variant="flat"
+            :loading="editSaving"
+            :disabled="!editText.trim()"
+            @click="handleSaveEdit"
+          >
+            保存
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- エラー詳細ダイアログ -->
     <v-dialog v-model="showErrorDialog" max-width="400">
       <v-card>
