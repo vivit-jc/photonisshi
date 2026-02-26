@@ -15,7 +15,7 @@ function formatTime(iso) {
     <v-card-text class="pa-3">
       <div class="text-body-2 text-grey-darken-3 comment-content">{{ comment.content }}</div>
       <div class="d-flex align-center mt-1">
-        <span class="text-caption">
+        <span class="text-caption text-grey-darken-3">
           <v-icon size="small" class="mr-1">mdi-clock-outline</v-icon>
           {{ formatTime(comment.commented_at) }}
         </span>
