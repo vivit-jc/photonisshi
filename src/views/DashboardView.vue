@@ -19,6 +19,8 @@ const confirmTarget = ref(null)
 const showConfirm = ref(false)
 const snackbar = ref(false)
 const snackbarMsg = ref('')
+const errorDetail = ref('')
+const showErrorDialog = ref(false)
 
 const today = computed(() => {
   const d = new Date()
@@ -50,8 +52,8 @@ async function handleCamera() {
     await loadTodayPhotos(currentUser.value.id)
   } catch (e) {
     if (e.message !== 'cancelled') {
-      snackbarMsg.value = '写真のアップロードに失敗しました'
-      snackbar.value = true
+      errorDetail.value = e.message || JSON.stringify(e)
+      showErrorDialog.value = true
     }
   }
 }
@@ -158,6 +160,22 @@ async function handleConfirmDelete() {
       message="この項目を削除しますか？"
       @confirm="handleConfirmDelete"
     />
+    <!-- エラー詳細ダイアログ -->
+    <v-dialog v-model="showErrorDialog" max-width="400">
+      <v-card>
+        <v-card-title class="text-body-1 font-weight-bold text-error">
+          アップロードエラー
+        </v-card-title>
+        <v-card-text>
+          <code class="d-block text-caption pa-2 bg-grey-lighten-4 rounded" style="word-break: break-all; white-space: pre-wrap;">{{ errorDetail }}</code>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="showErrorDialog = false">閉じる</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <v-snackbar v-model="snackbar" :timeout="3000" color="error">
       {{ snackbarMsg }}
     </v-snackbar>

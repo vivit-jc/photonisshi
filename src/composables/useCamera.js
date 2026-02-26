@@ -58,8 +58,10 @@ export function useCamera() {
           return
         }
         uploading.value = true
+        let step = 'compress'
         try {
           const compressed = await compressImage(file)
+          step = 'storage-upload'
           const now = new Date()
           const diaryDate = getToday()
           const uuid = crypto.randomUUID()
@@ -70,10 +72,11 @@ export function useCamera() {
             .upload(storagePath, compressed, { contentType: 'image/jpeg' })
           if (uploadError) throw uploadError
 
-          // 自動タグ付け
+          step = 'tag-lookup'
           await loadTags(userId)
           const tag = findTagForTime(now)
 
+          step = 'db-insert'
           const { error: insertError } = await supabase
             .from('photos')
             .insert({
@@ -87,7 +90,11 @@ export function useCamera() {
 
           resolve()
         } catch (e) {
-          reject(e)
+          const detail = `[${step}] ${e.message || e.statusCode || JSON.stringify(e)}`
+          const err = new Error(detail)
+          err.step = step
+          err.original = e
+          reject(err)
         } finally {
           uploading.value = false
         }
