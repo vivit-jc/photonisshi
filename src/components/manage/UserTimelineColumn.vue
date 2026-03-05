@@ -91,7 +91,7 @@ defineExpose({ refresh: fetchData })
           </div>
 
           <!-- Comment -->
-          <v-card v-else-if="item.type === 'comment'" variant="tonal" color="grey-lighten-4" class="rounded-lg">
+          <v-card v-else-if="item.type === 'comment'" variant="tonal" color="grey" class="rounded-lg">
             <v-card-text class="pa-2">
               <div class="text-body-2" style="white-space: pre-wrap;">{{ item.data.content }}</div>
               <div class="text-caption text-grey mt-1">{{ formatTime(item.time) }}</div>

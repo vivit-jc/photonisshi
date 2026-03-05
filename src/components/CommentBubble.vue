@@ -11,7 +11,7 @@ function formatTime(iso) {
 </script>
 
 <template>
-  <v-card variant="tonal" color="grey-lighten-4" class="comment-bubble">
+  <v-card variant="tonal" color="grey" class="comment-bubble">
     <v-card-text class="pa-3">
       <div class="text-body-2 text-grey-darken-3 comment-content">{{ comment.content }}</div>
       <div class="d-flex align-center mt-1">

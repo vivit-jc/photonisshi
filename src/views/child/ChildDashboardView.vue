@@ -1,5 +1,6 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { supabase } from '../../plugins/supabase'
 import { useAuth } from '../../composables/useAuth'
 import { usePhotos } from '../../composables/usePhotos'
 import { useComments } from '../../composables/useComments'
@@ -56,6 +57,8 @@ const timeline = computed(() => {
   return items
 })
 
+let messageSubscription = null
+
 onMounted(async () => {
   if (currentUser.value) {
     await Promise.all([
@@ -63,8 +66,31 @@ onMounted(async () => {
       loadTodayComments(currentUser.value.id),
       loadTodayMessages(currentUser.value.id),
     ])
+
+    // Subscribe to new messages in realtime
+    messageSubscription = supabase
+      .channel('messages-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `to_user_id=eq.${currentUser.value.id}`,
+        },
+        () => {
+          loadTodayMessages(currentUser.value.id)
+        },
+      )
+      .subscribe()
   }
   loadingData.value = false
+})
+
+onUnmounted(() => {
+  if (messageSubscription) {
+    supabase.removeChannel(messageSubscription)
+  }
 })
 
 async function reload() {
@@ -241,7 +267,7 @@ async function handleSaveEdit() {
     <v-progress-circular v-if="loadingData" indeterminate color="primary" class="d-block mx-auto" />
 
     <div v-else-if="timeline.length === 0" class="text-center text-grey py-8">
-      <v-icon size="48" color="grey-lighten-1">mdi-camera-off</v-icon>
+      <v-icon size="48" color="grey">mdi-camera-off</v-icon>
       <p class="mt-2">まだ記録がありません</p>
     </div>
 
