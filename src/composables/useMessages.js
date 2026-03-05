@@ -20,14 +20,15 @@ export function useMessages() {
   }
 
   async function loadTodayMessages(userId) {
-    const d = new Date()
-    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    const now = new Date()
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
     const { data, error } = await supabase
       .from('messages')
       .select('*')
       .eq('to_user_id', userId)
-      .gte('created_at', `${today}T00:00:00`)
-      .lte('created_at', `${today}T23:59:59`)
+      .gte('created_at', startOfDay.toISOString())
+      .lt('created_at', endOfDay.toISOString())
       .order('created_at', { ascending: true })
     if (error) throw error
     messages.value = data
