@@ -1,17 +1,21 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useAuth } from '../composables/useAuth'
-import { usePhotos } from '../composables/usePhotos'
-import { useComments } from '../composables/useComments'
-import { useCamera } from '../composables/useCamera'
-import PhotoThumbnail from '../components/PhotoThumbnail.vue'
-import CommentBubble from '../components/CommentBubble.vue'
-import ConfirmDialog from '../components/ConfirmDialog.vue'
+import { useAuth } from '../../composables/useAuth'
+import { usePhotos } from '../../composables/usePhotos'
+import { useComments } from '../../composables/useComments'
+import { useCamera } from '../../composables/useCamera'
+import { useMessages } from '../../composables/useMessages'
+import PhotoThumbnail from '../../components/PhotoThumbnail.vue'
+import CommentBubble from '../../components/CommentBubble.vue'
+import ConfirmDialog from '../../components/ConfirmDialog.vue'
+import PhotoCaptionDialog from '../../components/child/PhotoCaptionDialog.vue'
+import TagSelector from '../../components/child/TagSelector.vue'
 
 const { currentUser } = useAuth()
 const { photos, loadTodayPhotos, deletePhoto } = usePhotos()
 const { comments, loadTodayComments, addComment, updateComment, deleteComment } = useComments()
-const { openCamera, uploading } = useCamera()
+const { pickAndCompress, uploadPhoto, uploading } = useCamera()
+const { messages, loadTodayMessages } = useMessages()
 
 const commentText = ref('')
 const loadingData = ref(true)
@@ -26,6 +30,17 @@ const editText = ref('')
 const showEditDialog = ref(false)
 const editSaving = ref(false)
 
+// Caption dialog state
+const showCaptionDialog = ref(false)
+const pendingBlob = ref(null)
+const pendingPosition = ref(null)
+const previewUrl = ref(null)
+
+// Tag selector state
+const showTagSelector = ref(false)
+const tagSelectorPhotoId = ref(null)
+const tagSelectorCurrentTags = ref([])
+
 const today = computed(() => {
   const d = new Date()
   return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
@@ -35,6 +50,7 @@ const timeline = computed(() => {
   const items = [
     ...photos.value.map(p => ({ type: 'photo', data: p, time: new Date(p.captured_at) })),
     ...comments.value.map(c => ({ type: 'comment', data: c, time: new Date(c.commented_at) })),
+    ...messages.value.map(m => ({ type: 'message', data: m, time: new Date(m.created_at) })),
   ]
   items.sort((a, b) => a.time - b.time)
   return items
@@ -45,21 +61,72 @@ onMounted(async () => {
     await Promise.all([
       loadTodayPhotos(currentUser.value.id),
       loadTodayComments(currentUser.value.id),
+      loadTodayMessages(currentUser.value.id),
     ])
   }
   loadingData.value = false
 })
 
-async function handleCamera() {
+async function reload() {
+  await Promise.all([
+    loadTodayPhotos(currentUser.value.id),
+    loadTodayMessages(currentUser.value.id),
+  ])
+}
+
+async function handleCamera(useCapture = true) {
   try {
-    await openCamera(currentUser.value.id)
-    await loadTodayPhotos(currentUser.value.id)
+    const { blob, position } = await pickAndCompress(useCapture)
+    pendingBlob.value = blob
+    pendingPosition.value = position
+    previewUrl.value = URL.createObjectURL(blob)
+    showCaptionDialog.value = true
   } catch (e) {
     if (e.message !== 'cancelled') {
       errorDetail.value = e.message || JSON.stringify(e)
       showErrorDialog.value = true
     }
   }
+}
+
+async function handleCaptionSubmit(caption) {
+  try {
+    const photoId = await uploadPhoto(
+      currentUser.value.id,
+      pendingBlob.value,
+      caption,
+      pendingPosition.value,
+    )
+    if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
+    pendingBlob.value = null
+    pendingPosition.value = null
+    previewUrl.value = null
+
+    await reload()
+
+    // Open tag selector for newly uploaded photo
+    const uploaded = photos.value.find(p => p.id === photoId)
+    if (uploaded) {
+      tagSelectorPhotoId.value = photoId
+      tagSelectorCurrentTags.value = uploaded.tags || []
+      showTagSelector.value = true
+    }
+  } catch (e) {
+    errorDetail.value = e.message || JSON.stringify(e)
+    showErrorDialog.value = true
+  }
+}
+
+function openTagSelector(photo) {
+  tagSelectorPhotoId.value = photo.id
+  tagSelectorCurrentTags.value = photo.tags || []
+  showTagSelector.value = true
+}
+
+async function handleTagUpdated() {
+  await loadTodayPhotos(currentUser.value.id)
+  const photo = photos.value.find(p => p.id === tagSelectorPhotoId.value)
+  if (photo) tagSelectorCurrentTags.value = photo.tags || []
 }
 
 async function handleAddComment() {
@@ -135,9 +202,18 @@ async function handleSaveEdit() {
         variant="flat"
         prepend-icon="mdi-camera"
         :loading="uploading"
-        @click="handleCamera"
+        @click="handleCamera(true)"
       >
         カメラを起動
+      </v-btn>
+      <v-btn
+        color="secondary"
+        variant="flat"
+        prepend-icon="mdi-image"
+        :loading="uploading"
+        @click="handleCamera(false)"
+      >
+        写真を貼る
       </v-btn>
     </div>
 
@@ -175,21 +251,52 @@ async function handleSaveEdit() {
           v-if="item.type === 'photo'"
           :photo="item.data"
           @delete="requestDelete('photo', item.data)"
+          @tag="openTagSelector(item.data)"
         />
         <CommentBubble
-          v-else
+          v-else-if="item.type === 'comment'"
           :comment="item.data"
           @edit="openEditDialog(item.data)"
           @delete="requestDelete('comment', item.data)"
         />
+        <!-- Message from parent -->
+        <v-card v-else-if="item.type === 'message'" variant="tonal" color="blue-lighten-5" class="message-bubble">
+          <v-card-text class="pa-3">
+            <div class="d-flex align-center mb-1">
+              <v-icon size="small" color="blue" class="mr-1">mdi-message-text</v-icon>
+              <span class="text-caption text-blue font-weight-bold">メッセージ</span>
+            </div>
+            <div v-if="item.data.message_type === 'stamp'" class="text-h4">{{ item.data.content }}</div>
+            <div v-else class="text-body-2" style="white-space: pre-wrap;">{{ item.data.content }}</div>
+            <div class="text-caption text-grey mt-1">
+              {{ new Date(item.data.created_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) }}
+            </div>
+          </v-card-text>
+        </v-card>
       </template>
     </div>
+
+    <!-- Caption Dialog -->
+    <PhotoCaptionDialog
+      v-model="showCaptionDialog"
+      :preview-url="previewUrl"
+      @submit="handleCaptionSubmit"
+    />
+
+    <!-- Tag Selector -->
+    <TagSelector
+      v-model="showTagSelector"
+      :photo-id="tagSelectorPhotoId"
+      :current-tags="tagSelectorCurrentTags"
+      @updated="handleTagUpdated"
+    />
 
     <ConfirmDialog
       v-model="showConfirm"
       message="この項目を削除しますか？"
       @confirm="handleConfirmDelete"
     />
+
     <!-- コメント編集ダイアログ -->
     <v-dialog v-model="showEditDialog" max-width="400">
       <v-card>
@@ -243,3 +350,10 @@ async function handleSaveEdit() {
     </v-snackbar>
   </v-container>
 </template>
+
+<style scoped>
+.message-bubble {
+  border-radius: 12px !important;
+  border-top-right-radius: 4px !important;
+}
+</style>

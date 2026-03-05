@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { supabase } from '../plugins/supabase'
-import { useTags } from './useTags'
+import { useGeolocation } from './useGeolocation'
+import { useGpsTags } from './useGpsTags'
 
 const uploading = ref(false)
 
@@ -42,14 +43,16 @@ function compressImage(file, maxSide = 800, quality = 0.85) {
 }
 
 export function useCamera() {
-  const { findTagForTime, loadTags } = useTags()
+  const { getCoords } = useGeolocation()
+  const { loadGpsTags, findNearestGpsTag } = useGpsTags()
 
-  function openCamera(userId) {
+  // Step 1: Pick file and compress + get GPS (returns { blob, position })
+  function pickAndCompress(useCapture = true) {
     return new Promise((resolve, reject) => {
       const input = document.createElement('input')
       input.type = 'file'
       input.accept = 'image/*'
-      input.capture = 'environment'
+      if (useCapture) input.capture = 'environment'
 
       input.onchange = async () => {
         const file = input.files?.[0]
@@ -57,46 +60,15 @@ export function useCamera() {
           reject(new Error('cancelled'))
           return
         }
-        uploading.value = true
-        let step = 'compress'
         try {
-          const compressed = await compressImage(file)
-          step = 'storage-upload'
-          const now = new Date()
-          const diaryDate = getToday()
-          const uuid = crypto.randomUUID()
-          const storagePath = `${userId}/${diaryDate}/${uuid}.jpg`
-
-          const { error: uploadError } = await supabase.storage
-            .from('photos')
-            .upload(storagePath, compressed, { contentType: 'image/jpeg' })
-          if (uploadError) throw uploadError
-
-          step = 'tag-lookup'
-          await loadTags(userId)
-          const tag = findTagForTime(now)
-
-          step = 'db-insert'
-          const { error: insertError } = await supabase
-            .from('photos')
-            .insert({
-              user_id: userId,
-              storage_path: storagePath,
-              captured_at: now.toISOString(),
-              diary_date: diaryDate,
-              tag_id: tag?.id || null,
-            })
-          if (insertError) throw insertError
-
-          resolve()
+          // Compress and get GPS in parallel
+          const [blob, position] = await Promise.all([
+            compressImage(file),
+            getCoords(10000),
+          ])
+          resolve({ blob, position })
         } catch (e) {
-          const detail = `[${step}] ${e.message || e.statusCode || JSON.stringify(e)}`
-          const err = new Error(detail)
-          err.step = step
-          err.original = e
-          reject(err)
-        } finally {
-          uploading.value = false
+          reject(e)
         }
       }
 
@@ -105,5 +77,55 @@ export function useCamera() {
     })
   }
 
-  return { openCamera, uploading }
+  // Step 2: Upload photo with caption and GPS tag
+  async function uploadPhoto(userId, blob, caption = null, position = null) {
+    uploading.value = true
+    let step = 'storage-upload'
+    try {
+      const now = new Date()
+      const diaryDate = getToday()
+      const uuid = crypto.randomUUID()
+      const storagePath = `${userId}/${diaryDate}/${uuid}.jpg`
+
+      const { error: uploadError } = await supabase.storage
+        .from('photos')
+        .upload(storagePath, blob, { contentType: 'image/jpeg' })
+      if (uploadError) throw uploadError
+
+      step = 'gps-tag-lookup'
+      let gpsTagId = null
+      if (position) {
+        await loadGpsTags()
+        const result = findNearestGpsTag(position.latitude, position.longitude)
+        if (result) gpsTagId = result.tag.id
+      }
+
+      step = 'db-insert'
+      const { data, error: insertError } = await supabase
+        .from('photos')
+        .insert({
+          user_id: userId,
+          storage_path: storagePath,
+          captured_at: now.toISOString(),
+          diary_date: diaryDate,
+          caption: caption || null,
+          gps_tag_id: gpsTagId,
+        })
+        .select('id')
+        .single()
+      if (insertError) throw insertError
+
+      return data.id
+    } catch (e) {
+      const detail = `[${step}] ${e.message || e.statusCode || JSON.stringify(e)}`
+      const err = new Error(detail)
+      err.step = step
+      err.original = e
+      throw err
+    } finally {
+      uploading.value = false
+    }
+  }
+
+  return { pickAndCompress, uploadPhoto, uploading }
 }

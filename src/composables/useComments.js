@@ -20,20 +20,15 @@ export function useComments() {
     comments.value = data
   }
 
-  async function loadComments(userId, { month } = {}) {
+  async function loadComments(userId, { dateFrom, dateTo } = {}) {
     let query = supabase
       .from('comments')
       .select('*')
       .eq('user_id', userId)
       .order('commented_at', { ascending: false })
 
-    if (month) {
-      const start = `${month}-01`
-      const [y, m] = month.split('-').map(Number)
-      const end = new Date(y, m, 0)
-      const endStr = `${y}-${String(m).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`
-      query = query.gte('diary_date', start).lte('diary_date', endStr)
-    }
+    if (dateFrom) query = query.gte('diary_date', dateFrom)
+    if (dateTo) query = query.lte('diary_date', dateTo)
 
     const { data, error } = await query
     if (error) throw error

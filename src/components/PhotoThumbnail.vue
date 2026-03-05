@@ -4,7 +4,7 @@ import TagChip from './TagChip.vue'
 defineProps({
   photo: { type: Object, required: true },
 })
-const emit = defineEmits(['delete'])
+const emit = defineEmits(['delete', 'tag'])
 
 function formatTime(iso) {
   const d = new Date(iso)
@@ -20,7 +20,10 @@ function formatTime(iso) {
       cover
       class="rounded-t-lg"
     />
-    <v-card-text class="pa-2 d-flex align-center">
+    <v-card-text v-if="photo.caption" class="pa-2 pb-0 text-body-2">
+      {{ photo.caption }}
+    </v-card-text>
+    <v-card-text class="pa-2 d-flex align-center flex-wrap ga-1">
       <span class="text-caption text-grey">
         <v-icon size="small" class="mr-1">mdi-clock-outline</v-icon>
         {{ formatTime(photo.captured_at) }}
@@ -30,11 +33,18 @@ function formatTime(iso) {
         size="x-small"
         variant="text"
         color="error"
-        class="mx-2"
         @click.stop="emit('delete')"
       />
+      <v-btn
+        icon="mdi-tag-outline"
+        size="x-small"
+        variant="text"
+        color="primary"
+        @click.stop="emit('tag')"
+      />
       <v-spacer />
-      <TagChip :tag="photo.tag" />
+      <TagChip v-for="tag in (photo.tags || [])" :key="tag.id" :tag="tag" />
+      <TagChip v-if="photo.gpsTag" :tag="photo.gpsTag" type="gps" />
     </v-card-text>
   </v-card>
 </template>

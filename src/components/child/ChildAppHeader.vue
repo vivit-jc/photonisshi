@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { useAuth } from '../composables/useAuth'
+import { useAuth } from '../../composables/useAuth'
 import { useRouter } from 'vue-router'
 
 const { currentUser, clearUser } = useAuth()
@@ -8,9 +8,9 @@ const router = useRouter()
 const drawer = ref(false)
 
 const navItems = [
-  { title: 'ダッシュボード', icon: 'mdi-view-dashboard', to: '/' },
-  { title: '画像一覧', icon: 'mdi-image-multiple', to: '/images' },
-  { title: 'タグ設定', icon: 'mdi-tag-multiple', to: '/tags' },
+  { title: 'ダッシュボード', icon: 'mdi-view-dashboard', to: '/device' },
+  { title: 'タイムライン', icon: 'mdi-image-multiple', to: '/device/timeline' },
+  { title: 'タグ設定', icon: 'mdi-tag-multiple', to: '/device/tags' },
 ]
 
 function logout() {

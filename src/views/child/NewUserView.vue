@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuth } from '../composables/useAuth'
+import { useAuth } from '../../composables/useAuth'
 
 const router = useRouter()
 const { register } = useAuth()
@@ -19,7 +19,7 @@ async function handleRegister() {
   errorMsg.value = ''
   try {
     await register(name)
-    router.push('/')
+    router.push('/device')
   } catch (e) {
     errorMsg.value = e.message || '登録に失敗しました'
   } finally {

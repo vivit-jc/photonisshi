@@ -1,51 +1,38 @@
 import { ref } from 'vue'
 import { supabase } from '../plugins/supabase'
 
-const tags = ref([])
-
-function timeToMinutes(timeStr) {
-  const [h, m] = timeStr.split(':').map(Number)
-  return h * 60 + m
-}
+const manualTags = ref([])
+const commonTags = ref([])
 
 export function useTags() {
-  async function loadTags(userId) {
+  // --- Manual tags (per-user) ---
+  async function loadManualTags(userId) {
     const { data, error } = await supabase
       .from('tags')
       .select('*')
+      .eq('type', 'manual')
       .eq('user_id', userId)
-      .order('start_time', { ascending: true })
+      .order('name', { ascending: true })
     if (error) throw error
-    tags.value = data
+    manualTags.value = data
   }
 
-  async function addTag(userId, name, startTime, endTime) {
+  async function addManualTag(userId, name) {
     const { error } = await supabase
       .from('tags')
-      .insert({
-        user_id: userId,
-        name,
-        start_time: startTime,
-        end_time: endTime,
-      })
+      .insert({ user_id: userId, name, type: 'manual' })
     if (error) throw error
   }
 
-  async function updateTag(tagId, updates) {
+  async function updateManualTag(tagId, name) {
     const { error } = await supabase
       .from('tags')
-      .update(updates)
+      .update({ name })
       .eq('id', tagId)
     if (error) throw error
   }
 
-  async function deleteTag(tagId) {
-    // タグ削除前に写真のtag_idをnullに
-    await supabase
-      .from('photos')
-      .update({ tag_id: null })
-      .eq('tag_id', tagId)
-
+  async function deleteManualTag(tagId) {
     const { error } = await supabase
       .from('tags')
       .delete()
@@ -53,63 +40,79 @@ export function useTags() {
     if (error) throw error
   }
 
-  function findTagForTime(dateTime) {
-    const minutes = dateTime.getHours() * 60 + dateTime.getMinutes()
-    const matched = tags.value.filter(t => {
-      const start = timeToMinutes(t.start_time)
-      const end = timeToMinutes(t.end_time)
-      return minutes >= start && minutes < end
-    })
-    if (matched.length === 0) return null
-    // 開始時間が早い方優先
-    matched.sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time))
-    return matched[0]
-  }
-
-  function detectOverlaps() {
-    const overlaps = []
-    for (let i = 0; i < tags.value.length; i++) {
-      for (let j = i + 1; j < tags.value.length; j++) {
-        const a = tags.value[i]
-        const b = tags.value[j]
-        const aStart = timeToMinutes(a.start_time)
-        const aEnd = timeToMinutes(a.end_time)
-        const bStart = timeToMinutes(b.start_time)
-        const bEnd = timeToMinutes(b.end_time)
-        if (aStart < bEnd && bStart < aEnd) {
-          overlaps.push([a, b])
-        }
-      }
-    }
-    return overlaps
-  }
-
-  async function reassignAllTags(userId) {
-    await loadTags(userId)
-    const { data: allPhotos, error } = await supabase
-      .from('photos')
-      .select('id, captured_at')
-      .eq('user_id', userId)
+  // --- Common tags (global, no user_id) ---
+  async function loadCommonTags() {
+    const { data, error } = await supabase
+      .from('tags')
+      .select('*')
+      .eq('type', 'common')
+      .order('name', { ascending: true })
     if (error) throw error
+    commonTags.value = data
+  }
 
-    for (const photo of allPhotos) {
-      const capturedAt = new Date(photo.captured_at)
-      const tag = findTagForTime(capturedAt)
-      await supabase
-        .from('photos')
-        .update({ tag_id: tag?.id || null })
-        .eq('id', photo.id)
-    }
+  async function addCommonTag(name) {
+    const { error } = await supabase
+      .from('tags')
+      .insert({ name, type: 'common', user_id: null })
+    if (error) throw error
+  }
+
+  async function updateCommonTag(tagId, name) {
+    const { error } = await supabase
+      .from('tags')
+      .update({ name })
+      .eq('id', tagId)
+    if (error) throw error
+  }
+
+  async function deleteCommonTag(tagId) {
+    const { error } = await supabase
+      .from('tags')
+      .delete()
+      .eq('id', tagId)
+    if (error) throw error
+  }
+
+  // --- Photo-tag operations (photo_tags pivot) ---
+  async function attachTag(photoId, tagId) {
+    const { error } = await supabase
+      .from('photo_tags')
+      .insert({ photo_id: photoId, tag_id: tagId })
+    if (error) throw error
+  }
+
+  async function detachTag(photoId, tagId) {
+    const { error } = await supabase
+      .from('photo_tags')
+      .delete()
+      .eq('photo_id', photoId)
+      .eq('tag_id', tagId)
+    if (error) throw error
+  }
+
+  async function getPhotoTags(photoId) {
+    const { data, error } = await supabase
+      .from('photo_tags')
+      .select('tag_id, tags(id, name, type)')
+      .eq('photo_id', photoId)
+    if (error) throw error
+    return data.map((pt) => pt.tags)
   }
 
   return {
-    tags,
-    loadTags,
-    addTag,
-    updateTag,
-    deleteTag,
-    findTagForTime,
-    detectOverlaps,
-    reassignAllTags,
+    manualTags,
+    commonTags,
+    loadManualTags,
+    addManualTag,
+    updateManualTag,
+    deleteManualTag,
+    loadCommonTags,
+    addCommonTag,
+    updateCommonTag,
+    deleteCommonTag,
+    attachTag,
+    detachTag,
+    getPhotoTags,
   }
 }
