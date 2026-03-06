@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useAuth } from '../../composables/useAuth'
 import { usePhotos } from '../../composables/usePhotos'
 import { useComments } from '../../composables/useComments'
+import { useMessages } from '../../composables/useMessages'
 import { useTags } from '../../composables/useTags'
 import TagChip from '../../components/TagChip.vue'
 import ConfirmDialog from '../../components/ConfirmDialog.vue'
@@ -11,6 +12,7 @@ import TagSelector from '../../components/child/TagSelector.vue'
 const { currentUser } = useAuth()
 const { loadPhotos, deletePhoto } = usePhotos()
 const { loadComments, updateComment, deleteComment } = useComments()
+const { loadMessages } = useMessages()
 const { manualTags, commonTags, loadManualTags, loadCommonTags } = useTags()
 
 const loading = ref(true)
@@ -87,7 +89,7 @@ async function fetchData() {
   loading.value = true
   try {
     const userId = currentUser.value.id
-    const [photoData, commentData] = await Promise.all([
+    const [photoData, commentData, messageData] = await Promise.all([
       loadPhotos(userId, {
         dateFrom: dateFrom.value,
         dateTo: dateTo.value,
@@ -96,6 +98,10 @@ async function fetchData() {
       loadComments(userId, {
         dateFrom: dateFrom.value,
         dateTo: dateTo.value,
+      }),
+      loadMessages(userId, {
+        dateFrom: `${dateFrom.value}T00:00:00`,
+        dateTo: `${dateTo.value}T23:59:59`,
       }),
     ])
 
@@ -113,7 +119,14 @@ async function fetchData() {
       time: c.commented_at,
     }))
 
-    items.value = [...photoItems, ...commentItems]
+    const messageItems = messageData.map(m => ({
+      type: 'message',
+      data: m,
+      diary_date: m.created_at.slice(0, 10),
+      time: m.created_at,
+    }))
+
+    items.value = [...photoItems, ...commentItems, ...messageItems]
   } catch (e) {
     console.error(e)
   } finally {
@@ -252,12 +265,23 @@ async function handleTagUpdated() {
               </div>
             </div>
             <div
-              v-else
+              v-else-if="item.type === 'comment'"
               class="grid-item grid-comment rounded pa-2 d-flex flex-column justify-center"
               @click="expandedComment = item.data"
             >
               <div class="text-caption text-truncate-2">{{ item.data.content }}</div>
               <div class="text-caption text-grey mt-auto">{{ formatTime(item.time) }}</div>
+            </div>
+            <div
+              v-else-if="item.type === 'message'"
+              class="grid-item grid-message rounded pa-2 d-flex flex-column justify-center"
+            >
+              <div v-if="item.data.message_type === 'stamp'" class="text-h5 text-center">{{ item.data.content }}</div>
+              <div v-else class="text-caption text-truncate-2">{{ item.data.content }}</div>
+              <div class="text-caption text-grey mt-auto">
+                <v-icon size="x-small">mdi-message-text</v-icon>
+                {{ formatTime(item.time) }}
+              </div>
             </div>
           </template>
         </div>
@@ -379,6 +403,11 @@ async function handleTagUpdated() {
 .grid-comment {
   background: #f5f5f5;
   border: 1px solid #e0e0e0;
+  min-height: 0;
+}
+.grid-message {
+  background: #e3f2fd;
+  border: 1px solid #bbdefb;
   min-height: 0;
 }
 .text-truncate-2 {

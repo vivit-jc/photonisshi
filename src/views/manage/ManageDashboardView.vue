@@ -81,7 +81,7 @@ function setColumnRef(userId, el) {
 </script>
 
 <template>
-  <v-container class="pa-4" fluid>
+  <v-container class="pa-4" style="max-width: 600px">
     <div class="d-flex align-center mb-4">
       <v-icon class="mr-2" color="teal">mdi-calendar-today</v-icon>
       <span class="text-h6">{{ today }}</span>
@@ -91,6 +91,7 @@ function setColumnRef(userId, el) {
 
     <template v-else>
       <!-- User selector -->
+      <div class="text-caption text-grey mb-1">クリックでON/OFF切替</div>
       <div class="d-flex flex-wrap ga-1 mb-4">
         <v-chip
           v-for="user in users"

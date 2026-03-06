@@ -92,7 +92,10 @@ async function handleDelete() {
 
 <template>
   <v-container class="pa-4" style="max-width: 600px">
-    <h2 class="text-h6 mb-4">共通タグ管理</h2>
+    <h2 class="text-h6 mb-2">共通タグ管理</h2>
+    <p class="text-body-2 text-grey-darken-1 mb-4">
+      共通タグを追加すると、全ユーザーが手元で使えるようになります。よく使うタグ（例：青果、精肉、水産）を登録しておくと、写真の整理に役立ちます。
+    </p>
 
     <v-card variant="outlined" class="mb-4">
       <v-card-text>

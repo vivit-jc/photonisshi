@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { usePhotos } from '../../composables/usePhotos'
 import { useComments } from '../../composables/useComments'
 import { useMessages } from '../../composables/useMessages'
+import { useTags } from '../../composables/useTags'
 import TagChip from '../../components/TagChip.vue'
 
 const props = defineProps({
@@ -13,15 +14,26 @@ const emit = defineEmits(['send-message'])
 const { loadPhotos } = usePhotos()
 const { loadComments } = useComments()
 const { loadMessages } = useMessages()
+const { commonTags, loadCommonTags, loadManualTags, manualTags } = useTags()
 
 const loading = ref(true)
 const items = ref([])
 const expandedPhoto = ref(null)
+const showFilter = ref(false)
 
 function getToday() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
+
+const dateFrom = ref(getToday())
+const dateTo = ref(getToday())
+const selectedTagIds = ref([])
+
+const tagOptions = computed(() => [
+  ...commonTags.value.map(t => ({ title: `[共通] ${t.name}`, value: t.id })),
+  ...manualTags.value.map(t => ({ title: t.name, value: t.id })),
+])
 
 const timeline = computed(() => {
   return [...items.value].sort((a, b) => new Date(a.time) - new Date(b.time))
@@ -30,13 +42,21 @@ const timeline = computed(() => {
 async function fetchData() {
   loading.value = true
   try {
-    const today = getToday()
+    const from = dateFrom.value
+    const to = dateTo.value
+    const fromDate = new Date(from + 'T00:00:00')
+    const toDate = new Date(to + 'T00:00:00')
+    toDate.setDate(toDate.getDate() + 1)
     const [photoData, commentData, messageData] = await Promise.all([
-      loadPhotos(props.user.id, { dateFrom: today, dateTo: today }),
-      loadComments(props.user.id, { dateFrom: today, dateTo: today }),
+      loadPhotos(props.user.id, {
+        dateFrom: from,
+        dateTo: to,
+        tagIds: selectedTagIds.value.length > 0 ? selectedTagIds.value : undefined,
+      }),
+      loadComments(props.user.id, { dateFrom: from, dateTo: to }),
       loadMessages(props.user.id, {
-        dateFrom: `${today}T00:00:00`,
-        dateTo: `${today}T23:59:59`,
+        dateFrom: fromDate.toISOString(),
+        dateTo: toDate.toISOString(),
       }),
     ])
 
@@ -57,8 +77,18 @@ function formatTime(iso) {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
-watch(() => props.user.id, fetchData)
-onMounted(fetchData)
+watch(() => props.user.id, async () => {
+  await loadManualTags(props.user.id)
+  await fetchData()
+})
+watch([dateFrom, dateTo, selectedTagIds], fetchData)
+onMounted(async () => {
+  await Promise.all([
+    loadCommonTags(),
+    loadManualTags(props.user.id),
+  ])
+  await fetchData()
+})
 
 defineExpose({ refresh: fetchData })
 </script>
@@ -70,6 +100,48 @@ defineExpose({ refresh: fetchData })
       {{ user.username }}
     </v-card-title>
 
+    <div class="px-3 pt-1 pb-0">
+      <v-btn
+        variant="text"
+        size="x-small"
+        :prepend-icon="showFilter ? 'mdi-chevron-up' : 'mdi-filter-outline'"
+        @click="showFilter = !showFilter"
+      >
+        フィルター
+      </v-btn>
+      <v-expand-transition>
+        <div v-show="showFilter" class="d-flex flex-column ga-2 mt-1 mb-2">
+          <div class="d-flex ga-2">
+            <v-text-field
+              v-model="dateFrom"
+              type="date"
+              label="開始日"
+              density="compact"
+              hide-details
+            />
+            <v-text-field
+              v-model="dateTo"
+              type="date"
+              label="終了日"
+              density="compact"
+              hide-details
+            />
+          </div>
+          <v-select
+            v-model="selectedTagIds"
+            :items="tagOptions"
+            density="compact"
+            hide-details
+            label="タグで絞り込み"
+            multiple
+            chips
+            closable-chips
+            clearable
+          />
+        </div>
+      </v-expand-transition>
+    </div>
+
     <v-card-text class="pa-2 overflow-y-auto" style="max-height: 60vh">
       <v-progress-circular v-if="loading" indeterminate color="primary" size="24" class="d-block mx-auto" />
 
@@ -79,7 +151,6 @@ defineExpose({ refresh: fetchData })
 
       <div v-else class="d-flex flex-column ga-2">
         <template v-for="item in timeline" :key="item.data.id">
-          <!-- Photo -->
           <div v-if="item.type === 'photo'" class="timeline-photo" @click="expandedPhoto = item.data">
             <v-img :src="item.data.publicUrl" :aspect-ratio="4/3" cover class="rounded" />
             <div v-if="item.data.caption" class="text-caption mt-1">{{ item.data.caption }}</div>
@@ -89,17 +160,13 @@ defineExpose({ refresh: fetchData })
               <TagChip v-if="item.data.gpsTag" :tag="item.data.gpsTag" type="gps" />
             </div>
           </div>
-
-          <!-- Comment -->
-          <v-card v-else-if="item.type === 'comment'" variant="tonal" color="grey" class="rounded-lg">
+          <v-card v-if="item.type === 'comment'" variant="tonal" color="grey" class="rounded-lg">
             <v-card-text class="pa-2">
-              <div class="text-body-2" style="white-space: pre-wrap;">{{ item.data.content }}</div>
+              <div class="text-body-2 text-black" style="white-space: pre-wrap;">{{ item.data.content }}</div>
               <div class="text-caption text-grey mt-1">{{ formatTime(item.time) }}</div>
             </v-card-text>
           </v-card>
-
-          <!-- Message -->
-          <v-card v-else-if="item.type === 'message'" variant="tonal" color="blue-lighten-5" class="rounded-lg">
+          <v-card v-if="item.type === 'message'" variant="tonal" color="green" class="rounded-lg">
             <v-card-text class="pa-2">
               <div v-if="item.data.message_type === 'stamp'" class="text-h5">{{ item.data.content }}</div>
               <div v-else class="text-body-2" style="white-space: pre-wrap;">{{ item.data.content }}</div>
@@ -132,5 +199,6 @@ defineExpose({ refresh: fetchData })
 <style scoped>
 .timeline-photo {
   cursor: pointer;
+  width: 50%;
 }
 </style>

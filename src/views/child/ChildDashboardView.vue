@@ -286,12 +286,8 @@ async function handleSaveEdit() {
           @delete="requestDelete('comment', item.data)"
         />
         <!-- Message from parent -->
-        <v-card v-else-if="item.type === 'message'" variant="tonal" color="blue-lighten-5" class="message-bubble">
+        <v-card v-else-if="item.type === 'message'" variant="tonal" color="green" class="message-bubble">
           <v-card-text class="pa-3">
-            <div class="d-flex align-center mb-1">
-              <v-icon size="small" color="blue" class="mr-1">mdi-message-text</v-icon>
-              <span class="text-caption text-blue font-weight-bold">メッセージ</span>
-            </div>
             <div v-if="item.data.message_type === 'stamp'" class="text-h4">{{ item.data.content }}</div>
             <div v-else class="text-body-2" style="white-space: pre-wrap;">{{ item.data.content }}</div>
             <div class="text-caption text-grey mt-1">
