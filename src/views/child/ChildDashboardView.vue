@@ -6,17 +6,20 @@ import { usePhotos } from '../../composables/usePhotos'
 import { useComments } from '../../composables/useComments'
 import { useCamera } from '../../composables/useCamera'
 import { useMessages } from '../../composables/useMessages'
+import { useTagFilter } from '../../composables/useTagFilter'
 import PhotoThumbnail from '../../components/PhotoThumbnail.vue'
 import CommentBubble from '../../components/CommentBubble.vue'
 import ConfirmDialog from '../../components/ConfirmDialog.vue'
 import PhotoCaptionDialog from '../../components/child/PhotoCaptionDialog.vue'
 import TagSelector from '../../components/child/TagSelector.vue'
+import TagFilterSelect from '../../components/TagFilterSelect.vue'
 
 const { currentUser } = useAuth()
 const { photos, loadTodayPhotos, deletePhoto } = usePhotos()
 const { comments, loadTodayComments, addComment, updateComment, deleteComment } = useComments()
 const { pickAndCompress, uploadPhoto, uploading } = useCamera()
 const { messages, loadTodayMessages } = useMessages()
+const { selectedTagIds, tagOptions, loadTags, matchesTags } = useTagFilter()
 
 const commentText = ref('')
 const loadingData = ref(true)
@@ -48,12 +51,13 @@ const today = computed(() => {
 })
 
 const timeline = computed(() => {
+  const filteredPhotos = photos.value.filter(p => matchesTags(p))
   const items = [
-    ...photos.value.map(p => ({ type: 'photo', data: p, time: new Date(p.captured_at) })),
+    ...filteredPhotos.map(p => ({ type: 'photo', data: p, time: new Date(p.captured_at) })),
     ...comments.value.map(c => ({ type: 'comment', data: c, time: new Date(c.commented_at) })),
     ...messages.value.map(m => ({ type: 'message', data: m, time: new Date(m.created_at) })),
   ]
-  items.sort((a, b) => a.time - b.time)
+  items.sort((a, b) => b.time - a.time)
   return items
 })
 
@@ -65,6 +69,7 @@ onMounted(async () => {
       loadTodayPhotos(currentUser.value.id),
       loadTodayComments(currentUser.value.id),
       loadTodayMessages(currentUser.value.id),
+      loadTags(currentUser.value.id),
     ])
 
     // Subscribe to new messages in realtime
@@ -241,6 +246,11 @@ async function handleSaveEdit() {
       >
         写真を貼る
       </v-btn>
+    </div>
+
+    <!-- Tag filter -->
+    <div class="mb-4">
+      <TagFilterSelect v-model="selectedTagIds" :options="tagOptions" />
     </div>
 
     <!-- Comment input -->

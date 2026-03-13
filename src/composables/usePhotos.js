@@ -46,12 +46,15 @@ export function usePhotos() {
 
     let mapped = data.map(mapPhoto)
 
-    // JS-side tag filter
+    // JS-side tag filter (AND match)
     if (tagIds && tagIds.length > 0) {
-      mapped = mapped.filter((p) =>
-        p.tags.some((t) => tagIds.includes(t.id)) ||
-        (p.gpsTag && tagIds.includes(p.gpsTag.id))
-      )
+      mapped = mapped.filter((p) => {
+        const photoTagIds = [
+          ...(p.tags || []).map(t => t.id),
+          ...(p.gpsTag ? [p.gpsTag.id] : []),
+        ]
+        return tagIds.every(id => photoTagIds.includes(id))
+      })
     }
 
     return mapped

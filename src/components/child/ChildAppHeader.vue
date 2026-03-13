@@ -1,10 +1,12 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useAuth } from '../../composables/useAuth'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 
 const { currentUser, clearUser } = useAuth()
 const router = useRouter()
+const route = useRoute()
+const pageTitle = computed(() => route.meta?.title || 'photonisshi')
 const drawer = ref(false)
 
 const navItems = [
@@ -24,7 +26,7 @@ function logout() {
   <v-app-bar color="primary" density="compact">
     <v-app-bar-nav-icon @click="drawer = !drawer" />
     <v-app-bar-title class="text-body-1 font-weight-bold">
-      photonisshi
+      {{ pageTitle }}
     </v-app-bar-title>
     <template #append>
       <v-chip size="small" variant="tonal" class="mr-2">

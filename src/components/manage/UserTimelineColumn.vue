@@ -3,8 +3,9 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { usePhotos } from '../../composables/usePhotos'
 import { useComments } from '../../composables/useComments'
 import { useMessages } from '../../composables/useMessages'
-import { useTags } from '../../composables/useTags'
+import { useTagFilter } from '../../composables/useTagFilter'
 import TagChip from '../../components/TagChip.vue'
+import TagFilterSelect from '../../components/TagFilterSelect.vue'
 
 const props = defineProps({
   user: { type: Object, required: true },
@@ -14,7 +15,7 @@ const emit = defineEmits(['send-message'])
 const { loadPhotos } = usePhotos()
 const { loadComments } = useComments()
 const { loadMessages } = useMessages()
-const { commonTags, loadCommonTags, loadManualTags, manualTags } = useTags()
+const { selectedTagIds, tagOptions, loadTags } = useTagFilter()
 
 const loading = ref(true)
 const items = ref([])
@@ -28,15 +29,9 @@ function getToday() {
 
 const dateFrom = ref(getToday())
 const dateTo = ref(getToday())
-const selectedTagIds = ref([])
-
-const tagOptions = computed(() => [
-  ...commonTags.value.map(t => ({ title: `[共通] ${t.name}`, value: t.id })),
-  ...manualTags.value.map(t => ({ title: t.name, value: t.id })),
-])
 
 const timeline = computed(() => {
-  return [...items.value].sort((a, b) => new Date(a.time) - new Date(b.time))
+  return [...items.value].sort((a, b) => new Date(b.time) - new Date(a.time))
 })
 
 async function fetchData() {
@@ -78,15 +73,12 @@ function formatTime(iso) {
 }
 
 watch(() => props.user.id, async () => {
-  await loadManualTags(props.user.id)
+  await loadTags(props.user.id)
   await fetchData()
 })
 watch([dateFrom, dateTo, selectedTagIds], fetchData)
 onMounted(async () => {
-  await Promise.all([
-    loadCommonTags(),
-    loadManualTags(props.user.id),
-  ])
+  await loadTags(props.user.id)
   await fetchData()
 })
 
@@ -127,17 +119,7 @@ defineExpose({ refresh: fetchData })
               hide-details
             />
           </div>
-          <v-select
-            v-model="selectedTagIds"
-            :items="tagOptions"
-            density="compact"
-            hide-details
-            label="タグで絞り込み"
-            multiple
-            chips
-            closable-chips
-            clearable
-          />
+          <TagFilterSelect v-model="selectedTagIds" :options="tagOptions" />
         </div>
       </v-expand-transition>
     </div>

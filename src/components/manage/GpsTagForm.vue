@@ -51,7 +51,8 @@ function handleSubmit() {
         <div class="d-flex ga-2">
           <v-text-field
             v-model="latitude"
-            label="緯度"
+            label="北緯"
+            placeholder="35.681236"
             type="number"
             step="0.000001"
             density="compact"
@@ -59,7 +60,8 @@ function handleSubmit() {
           />
           <v-text-field
             v-model="longitude"
-            label="経度"
+            label="東経"
+            placeholder="139.767125"
             type="number"
             step="0.000001"
             density="compact"

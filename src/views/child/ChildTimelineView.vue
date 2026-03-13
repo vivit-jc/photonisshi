@@ -4,8 +4,9 @@ import { useAuth } from '../../composables/useAuth'
 import { usePhotos } from '../../composables/usePhotos'
 import { useComments } from '../../composables/useComments'
 import { useMessages } from '../../composables/useMessages'
-import { useTags } from '../../composables/useTags'
+import { useTagFilter } from '../../composables/useTagFilter'
 import TagChip from '../../components/TagChip.vue'
+import TagFilterSelect from '../../components/TagFilterSelect.vue'
 import ConfirmDialog from '../../components/ConfirmDialog.vue'
 import TagSelector from '../../components/child/TagSelector.vue'
 
@@ -13,7 +14,7 @@ const { currentUser } = useAuth()
 const { loadPhotos, deletePhoto } = usePhotos()
 const { loadComments, updateComment, deleteComment } = useComments()
 const { loadMessages } = useMessages()
-const { manualTags, commonTags, loadManualTags, loadCommonTags } = useTags()
+const { selectedTagIds, tagOptions, loadTags } = useTagFilter()
 
 const loading = ref(true)
 const items = ref([])
@@ -36,7 +37,6 @@ const tagSelectorCurrentTags = ref([])
 // Date range filter: default 7 days
 const dateFrom = ref(getDefaultFrom())
 const dateTo = ref(getToday())
-const selectedTagIds = ref([])
 
 function getToday() {
   const d = new Date()
@@ -48,15 +48,6 @@ function getDefaultFrom() {
   d.setDate(d.getDate() - 6)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
-
-const allTags = computed(() => [
-  ...manualTags.value.map(t => ({ ...t, label: t.name })),
-  ...commonTags.value.map(t => ({ ...t, label: `[共通] ${t.name}` })),
-])
-
-const tagOptions = computed(() =>
-  allTags.value.map(t => ({ title: t.label, value: t.id }))
-)
 
 // 日付ごとにグルーピング
 const groupedByDate = computed(() => {
@@ -137,10 +128,7 @@ async function fetchData() {
 watch([dateFrom, dateTo, selectedTagIds], fetchData)
 
 onMounted(async () => {
-  await Promise.all([
-    loadManualTags(currentUser.value.id),
-    loadCommonTags(),
-  ])
+  await loadTags(currentUser.value.id)
   await fetchData()
 })
 
@@ -231,17 +219,7 @@ async function handleTagUpdated() {
           hide-details
         />
       </div>
-      <v-select
-        v-model="selectedTagIds"
-        :items="tagOptions"
-        density="compact"
-        hide-details
-        label="タグで絞り込み"
-        multiple
-        chips
-        closable-chips
-        clearable
-      />
+      <TagFilterSelect v-model="selectedTagIds" :options="tagOptions" />
     </div>
 
     <v-progress-circular v-if="loading" indeterminate color="primary" class="d-block mx-auto" />
