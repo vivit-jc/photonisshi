@@ -198,6 +198,7 @@ async function handleTagUpdated() {
 </script>
 
 <template>
+  <div class="timeline-bg">
   <v-container class="pa-4" style="max-width: 600px">
     <h2 class="text-h6 mb-3">タイムライン</h2>
 
@@ -354,9 +355,18 @@ async function handleTagUpdated() {
     <ConfirmDialog v-model="showConfirm" message="この項目を削除しますか？" @confirm="handleConfirmDelete" />
     <v-snackbar v-model="snackbar" :timeout="3000" color="error">{{ snackbarMsg }}</v-snackbar>
   </v-container>
+  </div>
 </template>
 
 <style scoped>
+.timeline-bg {
+  background-color: #fffff0;
+  min-height: 100vh;
+}
+.timeline-bg :deep(.v-field),
+.timeline-bg :deep(.v-card) {
+  background-color: #fff;
+}
 .image-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

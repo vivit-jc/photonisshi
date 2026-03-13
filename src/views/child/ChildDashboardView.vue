@@ -220,6 +220,7 @@ async function handleSaveEdit() {
 </script>
 
 <template>
+  <div class="dashboard-bg">
   <v-container class="pa-4" style="max-width: 600px">
     <div class="d-flex align-center mb-4">
       <v-icon class="mr-2" color="primary">mdi-calendar-today</v-icon>
@@ -381,9 +382,18 @@ async function handleSaveEdit() {
       {{ snackbarMsg }}
     </v-snackbar>
   </v-container>
+  </div>
 </template>
 
 <style scoped>
+.dashboard-bg {
+  background-color: #f0fff0;
+  min-height: 100vh;
+}
+.dashboard-bg :deep(.v-field),
+.dashboard-bg :deep(.v-card) {
+  background-color: #fff;
+}
 .message-bubble {
   border-radius: 12px !important;
   border-top-right-radius: 4px !important;
