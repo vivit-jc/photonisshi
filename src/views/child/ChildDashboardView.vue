@@ -13,6 +13,7 @@ import ConfirmDialog from '../../components/ConfirmDialog.vue'
 import PhotoCaptionDialog from '../../components/child/PhotoCaptionDialog.vue'
 import TagSelector from '../../components/child/TagSelector.vue'
 import TagFilterSelect from '../../components/TagFilterSelect.vue'
+import { getTodayJST } from '../../utils/date'
 
 const { currentUser } = useAuth()
 const { photos, loadTodayPhotos, deletePhoto } = usePhotos()
@@ -47,8 +48,9 @@ const tagSelectorPhotoId = ref(null)
 const tagSelectorCurrentTags = ref([])
 
 const today = computed(() => {
-  const d = new Date()
-  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
+  const t = getTodayJST()
+  const [y, m, d] = t.split('-')
+  return `${y}/${Number(m)}/${Number(d)}`
 })
 
 const timeline = computed(() => {

@@ -5,6 +5,7 @@ import { usePhotos } from '../../composables/usePhotos'
 import { useComments } from '../../composables/useComments'
 import { useMessages } from '../../composables/useMessages'
 import { useTagFilter } from '../../composables/useTagFilter'
+import { getTodayJST, getDaysAgoJST } from '../../utils/date'
 import TagChip from '../../components/TagChip.vue'
 import TagFilterSelect from '../../components/TagFilterSelect.vue'
 import ConfirmDialog from '../../components/ConfirmDialog.vue'
@@ -35,19 +36,8 @@ const tagSelectorPhotoId = ref(null)
 const tagSelectorCurrentTags = ref([])
 
 // Date range filter: default 7 days
-const dateFrom = ref(getDefaultFrom())
-const dateTo = ref(getToday())
-
-function getToday() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-function getDefaultFrom() {
-  const d = new Date()
-  d.setDate(d.getDate() - 6)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
+const dateFrom = ref(getDaysAgoJST(6))
+const dateTo = ref(getTodayJST())
 
 // 日付ごとにグルーピング
 const groupedByDate = computed(() => {

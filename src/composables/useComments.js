@@ -1,12 +1,8 @@
 import { ref } from 'vue'
 import { supabase } from '../plugins/supabase'
+import { getTodayJST } from '../utils/date'
 
 const comments = ref([])
-
-function getToday() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 
 export function useComments() {
   async function loadTodayComments(userId) {
@@ -14,7 +10,7 @@ export function useComments() {
       .from('comments')
       .select('*')
       .eq('user_id', userId)
-      .eq('diary_date', getToday())
+      .eq('diary_date', getTodayJST())
       .order('commented_at', { ascending: true })
     if (error) throw error
     comments.value = data
@@ -43,7 +39,7 @@ export function useComments() {
         user_id: userId,
         content,
         commented_at: now.toISOString(),
-        diary_date: getToday(),
+        diary_date: getTodayJST(),
       })
     if (error) throw error
   }

@@ -4,6 +4,7 @@ import { usePhotos } from '../../composables/usePhotos'
 import { useComments } from '../../composables/useComments'
 import { useMessages } from '../../composables/useMessages'
 import { useTagFilter } from '../../composables/useTagFilter'
+import { getTodayJST } from '../../utils/date'
 import TagChip from '../../components/TagChip.vue'
 import TagFilterSelect from '../../components/TagFilterSelect.vue'
 
@@ -22,13 +23,8 @@ const items = ref([])
 const expandedPhoto = ref(null)
 const showFilter = ref(false)
 
-function getToday() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-const dateFrom = ref(getToday())
-const dateTo = ref(getToday())
+const dateFrom = ref(getTodayJST())
+const dateTo = ref(getTodayJST())
 
 const timeline = computed(() => {
   return [...items.value].sort((a, b) => new Date(b.time) - new Date(a.time))

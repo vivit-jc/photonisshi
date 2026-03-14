@@ -1,12 +1,8 @@
 import { ref } from 'vue'
 import { supabase } from '../plugins/supabase'
+import { getTodayJST } from '../utils/date'
 
 const photos = ref([])
-
-function getToday() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 
 function mapPhoto(p) {
   return {
@@ -25,7 +21,7 @@ export function usePhotos() {
       .from('photos')
       .select(SELECT_FIELDS)
       .eq('user_id', userId)
-      .eq('diary_date', getToday())
+      .eq('diary_date', getTodayJST())
       .order('captured_at', { ascending: true })
     if (error) throw error
     photos.value = data.map(mapPhoto)

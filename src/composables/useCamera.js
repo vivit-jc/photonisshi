@@ -2,13 +2,9 @@ import { ref } from 'vue'
 import { supabase } from '../plugins/supabase'
 import { useGeolocation } from './useGeolocation'
 import { useGpsTags } from './useGpsTags'
+import { getTodayJST } from '../utils/date'
 
 const uploading = ref(false)
-
-function getToday() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 
 function compressImage(file, maxSide = 800, quality = 0.85) {
   return new Promise((resolve, reject) => {
@@ -90,7 +86,7 @@ export function useCamera() {
     let step = 'storage-upload'
     try {
       const now = new Date()
-      const diaryDate = getToday()
+      const diaryDate = getTodayJST()
       const uuid = crypto.randomUUID()
       const storagePath = `${userId}/${diaryDate}/${uuid}.jpg`
 
