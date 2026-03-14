@@ -22,6 +22,7 @@ const { messages, loadTodayMessages } = useMessages()
 const { selectedTagIds, tagOptions, loadTags, matchesTags } = useTagFilter()
 
 const commentText = ref('')
+const showMessagesOnly = ref(false)
 const loadingData = ref(true)
 const confirmTarget = ref(null)
 const showConfirm = ref(false)
@@ -58,6 +59,9 @@ const timeline = computed(() => {
     ...messages.value.map(m => ({ type: 'message', data: m, time: new Date(m.created_at) })),
   ]
   items.sort((a, b) => b.time - a.time)
+  if (showMessagesOnly.value) {
+    return items.filter(i => i.type === 'message')
+  }
   return items
 })
 
@@ -235,6 +239,15 @@ async function handleSaveEdit() {
     <div class="d-flex align-center mb-4">
       <v-icon class="mr-2" color="primary">mdi-calendar-today</v-icon>
       <span class="text-h6">{{ today }}</span>
+      <v-btn
+        v-if="messages.length > 0"
+        :color="showMessagesOnly ? 'primary' : 'green'"
+        :variant="showMessagesOnly ? 'flat' : 'text'"
+        icon="mdi-message"
+        size="small"
+        class="ml-2"
+        @click="showMessagesOnly = !showMessagesOnly"
+      />
     </div>
 
     <!-- Actions -->
