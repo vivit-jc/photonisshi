@@ -36,9 +36,9 @@ const editSaving = ref(false)
 
 // Caption dialog state
 const showCaptionDialog = ref(false)
-const pendingBlob = ref(null)
+const pendingBlobs = ref([])
 const pendingPosition = ref(null)
-const previewUrl = ref(null)
+const previewUrls = ref([])
 
 // Tag selector state
 const showTagSelector = ref(false)
@@ -107,10 +107,10 @@ async function reload() {
 
 async function handleCamera(useCapture = true) {
   try {
-    const { blob, position } = await pickAndCompress(useCapture)
-    pendingBlob.value = blob
+    const { blobs, position } = await pickAndCompress(useCapture)
+    pendingBlobs.value = blobs
     pendingPosition.value = position
-    previewUrl.value = URL.createObjectURL(blob)
+    previewUrls.value = blobs.map(b => URL.createObjectURL(b))
     showCaptionDialog.value = true
   } catch (e) {
     if (e.message !== 'cancelled') {
@@ -120,27 +120,37 @@ async function handleCamera(useCapture = true) {
   }
 }
 
+function cleanupPending() {
+  previewUrls.value.forEach(u => URL.revokeObjectURL(u))
+  pendingBlobs.value = []
+  pendingPosition.value = null
+  previewUrls.value = []
+}
+
 async function handleCaptionSubmit(caption) {
   try {
-    const photoId = await uploadPhoto(
-      currentUser.value.id,
-      pendingBlob.value,
-      caption,
-      pendingPosition.value,
-    )
-    if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
-    pendingBlob.value = null
-    pendingPosition.value = null
-    previewUrl.value = null
+    const photoIds = []
+    for (const blob of pendingBlobs.value) {
+      const id = await uploadPhoto(
+        currentUser.value.id,
+        blob,
+        caption,
+        pendingPosition.value,
+      )
+      photoIds.push(id)
+    }
+    cleanupPending()
 
     await reload()
 
-    // Open tag selector for newly uploaded photo
-    const uploaded = photos.value.find(p => p.id === photoId)
-    if (uploaded) {
-      tagSelectorPhotoId.value = photoId
-      tagSelectorCurrentTags.value = uploaded.tags || []
-      showTagSelector.value = true
+    // Open tag selector for the first uploaded photo
+    if (photoIds.length > 0) {
+      const uploaded = photos.value.find(p => p.id === photoIds[0])
+      if (uploaded) {
+        tagSelectorPhotoId.value = photoIds[0]
+        tagSelectorCurrentTags.value = uploaded.tags || []
+        showTagSelector.value = true
+      }
     }
   } catch (e) {
     errorDetail.value = e.message || JSON.stringify(e)
@@ -312,7 +322,7 @@ async function handleSaveEdit() {
     <!-- Caption Dialog -->
     <PhotoCaptionDialog
       v-model="showCaptionDialog"
-      :preview-url="previewUrl"
+      :preview-urls="previewUrls"
       @submit="handleCaptionSubmit"
     />
 

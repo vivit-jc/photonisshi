@@ -3,7 +3,7 @@ import { ref, watch } from 'vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  previewUrl: { type: String, default: null },
+  previewUrls: { type: Array, default: () => [] },
 })
 const emit = defineEmits(['update:modelValue', 'submit'])
 
@@ -27,8 +27,26 @@ function handleSkip() {
 <template>
   <v-dialog :model-value="modelValue" max-width="400" persistent @update:model-value="$emit('update:modelValue', $event)">
     <v-card>
-      <v-img v-if="previewUrl" :src="previewUrl" max-height="200" cover class="rounded-t" />
-      <v-card-title class="text-body-1 font-weight-bold">キャプションを入力</v-card-title>
+      <div v-if="previewUrls.length === 1">
+        <v-img :src="previewUrls[0]" max-height="200" cover class="rounded-t" />
+      </div>
+      <div v-else-if="previewUrls.length > 1" class="d-flex ga-1 pa-2 overflow-x-auto">
+        <v-img
+          v-for="(url, i) in previewUrls"
+          :key="i"
+          :src="url"
+          width="120"
+          height="120"
+          cover
+          class="rounded flex-shrink-0"
+        />
+      </div>
+      <v-card-title class="text-body-1 font-weight-bold">
+        キャプションを入力
+        <span v-if="previewUrls.length > 1" class="text-caption text-grey ml-2">
+          {{ previewUrls.length }}枚
+        </span>
+      </v-card-title>
       <v-card-text>
         <v-textarea
           v-model="caption"

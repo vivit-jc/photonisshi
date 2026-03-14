@@ -46,27 +46,31 @@ export function useCamera() {
   const { getCoords } = useGeolocation()
   const { loadGpsTags, findNearestGpsTag } = useGpsTags()
 
-  // Step 1: Pick file and compress + get GPS (returns { blob, position })
+  // Pick file(s), compress, and get GPS
+  // useCapture=true: camera (single), useCapture=false: gallery (multiple)
   function pickAndCompress(useCapture = true) {
     return new Promise((resolve, reject) => {
       const input = document.createElement('input')
       input.type = 'file'
       input.accept = 'image/*'
-      if (useCapture) input.capture = 'environment'
+      if (useCapture) {
+        input.capture = 'environment'
+      } else {
+        input.multiple = true
+      }
 
       input.onchange = async () => {
-        const file = input.files?.[0]
-        if (!file) {
+        const files = Array.from(input.files || [])
+        if (files.length === 0) {
           reject(new Error('cancelled'))
           return
         }
         try {
-          // Compress and get GPS in parallel
-          const [blob, position] = await Promise.all([
-            compressImage(file),
+          const [blobs, position] = await Promise.all([
+            Promise.all(files.map(f => compressImage(f))),
             getCoords(10000),
           ])
-          resolve({ blob, position })
+          resolve({ blobs, position })
         } catch (e) {
           reject(e)
         }
