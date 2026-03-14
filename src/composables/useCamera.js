@@ -52,10 +52,13 @@ export function useCamera() {
     return new Promise((resolve, reject) => {
       const input = document.createElement('input')
       input.type = 'file'
-      input.accept = 'image/*'
       if (useCapture) {
+        input.accept = 'image/*'
         input.capture = 'environment'
       } else {
+        // Android: accept="image/*" と multiple の組み合わせで
+        // 複数選択が制限される問題を回避するため、具体的なMIMEタイプを指定
+        input.accept = 'image/jpeg,image/png,image/webp,image/heic,image/heif'
         input.multiple = true
       }
 
