@@ -13,6 +13,7 @@ const navItems = [
   { title: 'ダッシュボード', icon: 'mdi-view-dashboard', to: '/device' },
   { title: 'タイムライン', icon: 'mdi-image-multiple', to: '/device/timeline' },
   { title: 'タグ設定', icon: 'mdi-tag-multiple', to: '/device/tags' },
+  { title: '更新履歴', icon: 'mdi-history', to: '/device/changelog' },
 ]
 
 function logout() {

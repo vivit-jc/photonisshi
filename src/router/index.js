@@ -23,6 +23,12 @@ const routes = [
     meta: { app: 'child', requiresAuth: true, title: 'タグ設定' },
   },
   {
+    path: '/device/changelog',
+    name: 'child-changelog',
+    component: () => import('../views/child/ChangelogView.vue'),
+    meta: { app: 'child', requiresAuth: false, title: '更新履歴' },
+  },
+  {
     path: '/device/new-user',
     name: 'new-user',
     component: () => import('../views/child/NewUserView.vue'),
