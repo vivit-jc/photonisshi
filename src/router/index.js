@@ -54,6 +54,12 @@ const routes = [
     component: () => import('../views/manage/ManageGpsTagsView.vue'),
     meta: { app: 'manage', requiresAuth: false, title: 'GPSタグ' },
   },
+  {
+    path: '/manage/changelog',
+    name: 'manage-changelog',
+    component: () => import('../views/child/ChangelogView.vue'),
+    meta: { app: 'manage', requiresAuth: false, title: '更新履歴' },
+  },
 ]
 
 const router = createRouter({
