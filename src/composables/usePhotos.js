@@ -56,6 +56,17 @@ export function usePhotos() {
     return mapped
   }
 
+  async function updatePhoto(photoId, { capturedAt, diaryDate }) {
+    const updates = {}
+    if (capturedAt) updates.captured_at = capturedAt
+    if (diaryDate) updates.diary_date = diaryDate
+    const { error } = await supabase
+      .from('photos')
+      .update(updates)
+      .eq('id', photoId)
+    if (error) throw error
+  }
+
   async function deletePhoto(photo) {
     const { error: storageError } = await supabase.storage
       .from('photos')
@@ -69,5 +80,5 @@ export function usePhotos() {
     if (dbError) throw dbError
   }
 
-  return { photos, loadTodayPhotos, loadPhotos, deletePhoto }
+  return { photos, loadTodayPhotos, loadPhotos, updatePhoto, deletePhoto }
 }

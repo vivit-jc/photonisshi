@@ -12,7 +12,7 @@ import ConfirmDialog from '../../components/ConfirmDialog.vue'
 import TagSelector from '../../components/TagSelector.vue'
 
 const { currentUser } = useAuth()
-const { loadPhotos, deletePhoto } = usePhotos()
+const { loadPhotos, updatePhoto, deletePhoto } = usePhotos()
 const { loadComments, updateComment, deleteComment } = useComments()
 const { loadMessages } = useMessages()
 const { selectedTagIds, tagOptions, loadTags } = useTagFilter()
@@ -29,6 +29,13 @@ const showEditDialog = ref(false)
 const editTarget = ref(null)
 const editText = ref('')
 const editSaving = ref(false)
+
+// Photo edit dialog
+const showPhotoEditDialog = ref(false)
+const photoEditTarget = ref(null)
+const photoEditDate = ref('')
+const photoEditTime = ref('')
+const photoEditSaving = ref(false)
 
 // Tag selector
 const showTagSelector = ref(false)
@@ -199,6 +206,35 @@ async function handleTagUpdated() {
     if (comment) tagSelectorCurrentTags.value = comment.data.tags || []
   }
 }
+
+function openPhotoEditDialog(photo) {
+  photoEditTarget.value = photo
+  photoEditDate.value = photo.diary_date
+  const d = new Date(photo.captured_at)
+  photoEditTime.value = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  showPhotoEditDialog.value = true
+}
+
+async function handleSavePhotoEdit() {
+  if (!photoEditTarget.value || !photoEditDate.value || !photoEditTime.value) return
+  photoEditSaving.value = true
+  try {
+    const capturedAt = `${photoEditDate.value}T${photoEditTime.value}:00+09:00`
+    await updatePhoto(photoEditTarget.value.id, {
+      capturedAt,
+      diaryDate: photoEditDate.value,
+    })
+    showPhotoEditDialog.value = false
+    photoEditTarget.value = null
+    expandedPhoto.value = null
+    await fetchData()
+  } catch {
+    snackbarMsg.value = '写真日時の更新に失敗しました'
+    snackbar.value = true
+  } finally {
+    photoEditSaving.value = false
+  }
+}
 </script>
 
 <template>
@@ -303,6 +339,15 @@ async function handleTagUpdated() {
             size="small"
             @click="openTagSelector(expandedPhoto)"
           />
+          <v-btn
+            size="small"
+            variant="text"
+            color="grey-darken-1"
+            prepend-icon="mdi-pencil-outline"
+            @click="openPhotoEditDialog(expandedPhoto)"
+          >
+            日時を編集
+          </v-btn>
           <v-spacer />
           <v-btn variant="text" @click="expandedPhoto = null">閉じる</v-btn>
         </v-card-actions>
@@ -323,8 +368,8 @@ async function handleTagUpdated() {
         </v-card-text>
         <v-card-actions>
           <v-btn icon="mdi-delete-outline" color="error" variant="text" size="small" @click="requestDeleteComment(expandedComment)" />
-          <v-btn icon="mdi-pencil-outline" color="grey-darken-1" variant="text" size="small" @click="openEditDialog(expandedComment)" />
           <v-btn icon="mdi-tag-outline" color="primary" variant="text" size="small" @click="openCommentTagSelector(expandedComment)" />
+          <v-btn icon="mdi-pencil-outline" color="grey-darken-1" variant="text" size="small" @click="openEditDialog(expandedComment)" />
           <v-spacer />
           <v-btn variant="text" @click="expandedComment = null">閉じる</v-btn>
         </v-card-actions>
@@ -363,6 +408,42 @@ async function handleTagUpdated() {
       :current-tags="tagSelectorCurrentTags"
       @updated="handleTagUpdated"
     />
+
+    <!-- 写真日時編集ダイアログ -->
+    <v-dialog v-model="showPhotoEditDialog" max-width="400">
+      <v-card>
+        <v-card-title class="text-body-1 font-weight-bold">写真の日時を編集</v-card-title>
+        <v-card-text class="d-flex flex-column ga-3">
+          <v-text-field
+            v-model="photoEditDate"
+            type="date"
+            label="日付"
+            hide-details
+            density="compact"
+          />
+          <v-text-field
+            v-model="photoEditTime"
+            type="time"
+            label="時刻"
+            hide-details
+            density="compact"
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="showPhotoEditDialog = false">キャンセル</v-btn>
+          <v-btn
+            color="primary"
+            variant="flat"
+            :loading="photoEditSaving"
+            :disabled="!photoEditDate || !photoEditTime"
+            @click="handleSavePhotoEdit"
+          >
+            保存
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
     <ConfirmDialog v-model="showConfirm" message="この項目を削除しますか？" @confirm="handleConfirmDelete" />
     <v-snackbar v-model="snackbar" :timeout="3000" color="error">{{ snackbarMsg }}</v-snackbar>

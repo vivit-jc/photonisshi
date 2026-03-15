@@ -15,7 +15,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['send-message'])
 
-const { loadPhotos } = usePhotos()
+const { loadPhotos, updatePhoto } = usePhotos()
 const { loadComments } = useComments()
 const { loadMessages, updateMessage, deleteMessage } = useMessages()
 const { selectedTagIds, tagOptions, loadTags } = useTagFilter()
@@ -35,6 +35,13 @@ const editText = ref('')
 const editSaving = ref(false)
 const showConfirm = ref(false)
 const confirmTarget = ref(null)
+
+// Photo edit dialog
+const showPhotoEditDialog = ref(false)
+const photoEditTarget = ref(null)
+const photoEditDate = ref('')
+const photoEditTime = ref('')
+const photoEditSaving = ref(false)
 
 const dateFrom = ref(getTodayJST())
 const dateTo = ref(getTodayJST())
@@ -163,6 +170,34 @@ function openTagSelectorForMessage(messageId) {
   showTagSelector.value = true
 }
 
+function openPhotoEditDialog(photo) {
+  photoEditTarget.value = photo
+  photoEditDate.value = photo.diary_date
+  const d = new Date(photo.captured_at)
+  photoEditTime.value = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  showPhotoEditDialog.value = true
+}
+
+async function handleSavePhotoEdit() {
+  if (!photoEditTarget.value || !photoEditDate.value || !photoEditTime.value) return
+  photoEditSaving.value = true
+  try {
+    const capturedAt = `${photoEditDate.value}T${photoEditTime.value}:00+09:00`
+    await updatePhoto(photoEditTarget.value.id, {
+      capturedAt,
+      diaryDate: photoEditDate.value,
+    })
+    showPhotoEditDialog.value = false
+    photoEditTarget.value = null
+    expandedPhoto.value = null
+    await fetchData()
+  } catch (e) {
+    console.error(e)
+  } finally {
+    photoEditSaving.value = false
+  }
+}
+
 defineExpose({ refresh: fetchData, openTagSelectorForMessage })
 </script>
 
@@ -263,6 +298,15 @@ defineExpose({ refresh: fetchData, openTagSelectorForMessage })
           {{ expandedPhoto.caption }}
         </v-card-text>
         <v-card-actions>
+          <v-btn
+            size="small"
+            variant="text"
+            color="grey-darken-1"
+            prepend-icon="mdi-pencil-outline"
+            @click="openPhotoEditDialog(expandedPhoto)"
+          >
+            日時を編集
+          </v-btn>
           <v-spacer />
           <v-btn variant="text" @click="expandedPhoto = null">閉じる</v-btn>
         </v-card-actions>
@@ -277,6 +321,42 @@ defineExpose({ refresh: fetchData, openTagSelectorForMessage })
       :user-id="user.id"
       @updated="handleTagUpdated"
     />
+
+    <!-- 写真日時編集ダイアログ -->
+    <v-dialog v-model="showPhotoEditDialog" max-width="400">
+      <v-card>
+        <v-card-title class="text-body-1 font-weight-bold">写真の日時を編集</v-card-title>
+        <v-card-text class="d-flex flex-column ga-3">
+          <v-text-field
+            v-model="photoEditDate"
+            type="date"
+            label="日付"
+            hide-details
+            density="compact"
+          />
+          <v-text-field
+            v-model="photoEditTime"
+            type="time"
+            label="時刻"
+            hide-details
+            density="compact"
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="showPhotoEditDialog = false">キャンセル</v-btn>
+          <v-btn
+            color="primary"
+            variant="flat"
+            :loading="photoEditSaving"
+            :disabled="!photoEditDate || !photoEditTime"
+            @click="handleSavePhotoEdit"
+          >
+            保存
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
     <!-- メッセージ編集ダイアログ -->
     <v-dialog v-model="showEditDialog" max-width="400">

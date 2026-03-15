@@ -17,7 +17,7 @@ import TagFilterSelect from '../../components/TagFilterSelect.vue'
 import { getTodayJST } from '../../utils/date'
 
 const { currentUser } = useAuth()
-const { photos, loadTodayPhotos, deletePhoto } = usePhotos()
+const { photos, loadTodayPhotos, updatePhoto, deletePhoto } = usePhotos()
 const { comments, loadTodayComments, addComment, updateComment, deleteComment } = useComments()
 const { pickAndCompress, uploadPhoto, uploading } = useCamera()
 const { messages, loadTodayMessages } = useMessages()
@@ -42,6 +42,13 @@ const showCaptionDialog = ref(false)
 const pendingBlobs = ref([])
 const pendingPosition = ref(null)
 const previewUrls = ref([])
+
+// Photo edit dialog state
+const showPhotoEditDialog = ref(false)
+const photoEditTarget = ref(null)
+const photoEditDate = ref('')
+const photoEditTime = ref('')
+const photoEditSaving = ref(false)
 
 // Tag selector state
 const showTagSelector = ref(false)
@@ -258,6 +265,34 @@ async function handleSaveEdit() {
     editSaving.value = false
   }
 }
+
+function openPhotoEditDialog(photo) {
+  photoEditTarget.value = photo
+  photoEditDate.value = photo.diary_date
+  const d = new Date(photo.captured_at)
+  photoEditTime.value = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  showPhotoEditDialog.value = true
+}
+
+async function handleSavePhotoEdit() {
+  if (!photoEditTarget.value || !photoEditDate.value || !photoEditTime.value) return
+  photoEditSaving.value = true
+  try {
+    const capturedAt = `${photoEditDate.value}T${photoEditTime.value}:00+09:00`
+    await updatePhoto(photoEditTarget.value.id, {
+      capturedAt,
+      diaryDate: photoEditDate.value,
+    })
+    showPhotoEditDialog.value = false
+    photoEditTarget.value = null
+    await reload()
+  } catch {
+    snackbarMsg.value = '写真日時の更新に失敗しました'
+    snackbar.value = true
+  } finally {
+    photoEditSaving.value = false
+  }
+}
 </script>
 
 <template>
@@ -338,6 +373,7 @@ async function handleSaveEdit() {
           v-if="item.type === 'photo'"
           :photo="item.data"
           @delete="requestDelete('photo', item.data)"
+          @edit="openPhotoEditDialog(item.data)"
           @tag="openTagSelector(item.data)"
         />
         <CommentBubble
@@ -410,6 +446,42 @@ async function handleSaveEdit() {
             :loading="editSaving"
             :disabled="!editText.trim()"
             @click="handleSaveEdit"
+          >
+            保存
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- 写真日時編集ダイアログ -->
+    <v-dialog v-model="showPhotoEditDialog" max-width="400">
+      <v-card>
+        <v-card-title class="text-body-1 font-weight-bold">写真の日時を編集</v-card-title>
+        <v-card-text class="d-flex flex-column ga-3">
+          <v-text-field
+            v-model="photoEditDate"
+            type="date"
+            label="日付"
+            hide-details
+            density="compact"
+          />
+          <v-text-field
+            v-model="photoEditTime"
+            type="time"
+            label="時刻"
+            hide-details
+            density="compact"
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="showPhotoEditDialog = false">キャンセル</v-btn>
+          <v-btn
+            color="primary"
+            variant="flat"
+            :loading="photoEditSaving"
+            :disabled="!photoEditDate || !photoEditTime"
+            @click="handleSavePhotoEdit"
           >
             保存
           </v-btn>

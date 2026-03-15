@@ -4,7 +4,7 @@ import TagChip from './TagChip.vue'
 defineProps({
   photo: { type: Object, required: true },
 })
-const emit = defineEmits(['delete', 'tag'])
+const emit = defineEmits(['delete', 'tag', 'edit'])
 
 function formatTime(iso) {
   const d = new Date(iso)
@@ -42,6 +42,15 @@ function formatTime(iso) {
         color="primary"
         @click.stop="emit('tag')"
       />
+      <v-btn
+        size="x-small"
+        variant="text"
+        color="grey-darken-1"
+        prepend-icon="mdi-pencil-outline"
+        @click.stop="emit('edit')"
+      >
+        日時を編集
+      </v-btn>
       <v-spacer />
       <TagChip v-for="tag in (photo.tags || [])" :key="tag.id" :tag="tag" />
       <TagChip v-if="photo.gpsTag" :tag="photo.gpsTag" type="gps" />

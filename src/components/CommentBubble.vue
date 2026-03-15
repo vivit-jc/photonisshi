@@ -26,12 +26,12 @@ function formatTime(iso) {
           {{ formatTime(comment.commented_at) }}
         </span>
         <v-btn
-          icon="mdi-pencil-outline"
+          icon="mdi-delete-outline"
           size="x-small"
           variant="text"
-          color="grey-darken-1"
+          color="error"
           class="ml-1"
-          @click.stop="emit('edit')"
+          @click.stop="emit('delete')"
         />
         <v-btn
           v-if="showTagButton"
@@ -42,11 +42,11 @@ function formatTime(iso) {
           @click.stop="emit('tag')"
         />
         <v-btn
-          icon="mdi-delete-outline"
+          icon="mdi-pencil-outline"
           size="x-small"
           variant="text"
-          color="error"
-          @click.stop="emit('delete')"
+          color="grey-darken-1"
+          @click.stop="emit('edit')"
         />
       </div>
     </v-card-text>
