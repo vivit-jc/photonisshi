@@ -42,8 +42,14 @@ onMounted(async () => {
       .order('username', { ascending: true })
     if (error) throw error
     users.value = data
-    // Default: select up to 3 users
-    selectedUserIds.value = data.slice(0, MAX_COLUMNS).map(u => u.id)
+    const saved = localStorage.getItem('manage_selectedUserIds')
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      // 存在するユーザーIDのみ復元
+      selectedUserIds.value = parsed.filter(id => data.some(u => u.id === id))
+    } else {
+      selectedUserIds.value = data.slice(0, MAX_COLUMNS).map(u => u.id)
+    }
   } catch (e) {
     console.error(e)
   } finally {
@@ -58,6 +64,7 @@ function toggleUser(userId) {
   } else if (selectedUserIds.value.length < MAX_COLUMNS) {
     selectedUserIds.value.push(userId)
   }
+  localStorage.setItem('manage_selectedUserIds', JSON.stringify(selectedUserIds.value))
 }
 
 async function handleSendMessage(userId, { content, type }) {
@@ -118,13 +125,13 @@ function setColumnRef(userId, el) {
           :class="columnClass"
           style="min-width: 280px"
         >
+          <div class="mb-2">
+            <MessageInput @send="(msg) => handleSendMessage(user.id, msg)" />
+          </div>
           <UserTimelineColumn
             :ref="(el) => setColumnRef(user.id, el)"
             :user="user"
           />
-          <div class="mt-2">
-            <MessageInput @send="(msg) => handleSendMessage(user.id, msg)" />
-          </div>
         </div>
       </div>
     </template>
