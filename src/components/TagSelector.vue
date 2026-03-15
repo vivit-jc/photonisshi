@@ -1,39 +1,50 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useAuth } from '../../composables/useAuth'
-import { useTags } from '../../composables/useTags'
+import { ref, computed, watch } from 'vue'
+import { useAuth } from '../composables/useAuth'
+import { useTags } from '../composables/useTags'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
   photoIds: { type: Array, default: () => [] },
+  commentIds: { type: Array, default: () => [] },
+  messageIds: { type: Array, default: () => [] },
   currentTags: { type: Array, default: () => [] },
+  userId: { type: String, default: null },
 })
 const emit = defineEmits(['update:modelValue', 'updated'])
 
 const { currentUser } = useAuth()
-const { manualTags, commonTags, loadManualTags, loadCommonTags, attachTag, detachTag } = useTags()
+const { manualTags, commonTags, loadManualTags, loadCommonTags, attachTag, detachTag, attachCommentTag, detachCommentTag, attachMessageTag, detachMessageTag } = useTags()
 const loading = ref(false)
 
 const attachedIds = computed(() => new Set(props.currentTags.map((t) => t.id)))
 
-onMounted(async () => {
-  if (currentUser.value) {
+watch(() => props.modelValue, async (open) => {
+  if (!open) return
+  const uid = props.userId ?? currentUser.value?.id
+  if (uid) {
     await Promise.all([
-      loadManualTags(currentUser.value.id),
+      loadManualTags(uid),
       loadCommonTags(),
     ])
   }
-})
+}, { immediate: true })
 
 async function toggle(tagId) {
-  if (props.photoIds.length === 0) return
+  if (props.photoIds.length === 0 && props.commentIds.length === 0 && props.messageIds.length === 0) return
   loading.value = true
   try {
-    if (attachedIds.value.has(tagId)) {
-      await Promise.all(props.photoIds.map(id => detachTag(id, tagId)))
-    } else {
-      await Promise.all(props.photoIds.map(id => attachTag(id, tagId)))
-    }
+    const isAttached = attachedIds.value.has(tagId)
+    const photoOps = props.photoIds.map(id =>
+      isAttached ? detachTag(id, tagId) : attachTag(id, tagId)
+    )
+    const commentOps = props.commentIds.map(id =>
+      isAttached ? detachCommentTag(id, tagId) : attachCommentTag(id, tagId)
+    )
+    const messageOps = props.messageIds.map(id =>
+      isAttached ? detachMessageTag(id, tagId) : attachMessageTag(id, tagId)
+    )
+    await Promise.all([...photoOps, ...commentOps, ...messageOps])
     emit('updated')
   } catch (e) {
     console.error(e)

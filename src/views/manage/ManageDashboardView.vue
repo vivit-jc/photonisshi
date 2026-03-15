@@ -62,12 +62,13 @@ function toggleUser(userId) {
 
 async function handleSendMessage(userId, { content, type }) {
   try {
-    await sendMessage(userId, content, type)
+    const msg = await sendMessage(userId, content, type)
     snackbarMsg.value = 'メッセージを送信しました'
     snackbarColor.value = 'success'
     snackbar.value = true
-    // Refresh the column
-    columnRefs.value[userId]?.refresh()
+    // Refresh the column then open tag selector
+    await columnRefs.value[userId]?.refresh()
+    columnRefs.value[userId]?.openTagSelectorForMessage(msg.id)
   } catch {
     snackbarMsg.value = 'メッセージの送信に失敗しました'
     snackbarColor.value = 'error'

@@ -26,5 +26,11 @@ export function useTagFilter() {
     return selectedTagIds.value.every(id => photoTagIds.includes(id))
   }
 
-  return { selectedTagIds, tagOptions, loadTags, matchesTags }
+  function matchesCommentTags(comment) {
+    if (selectedTagIds.value.length === 0) return true
+    const commentTagIds = (comment.tags || []).map(t => t.id)
+    return selectedTagIds.value.every(id => commentTagIds.includes(id))
+  }
+
+  return { selectedTagIds, tagOptions, loadTags, matchesTags, matchesCommentTags }
 }

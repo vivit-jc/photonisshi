@@ -11,7 +11,8 @@ import PhotoThumbnail from '../../components/PhotoThumbnail.vue'
 import CommentBubble from '../../components/CommentBubble.vue'
 import ConfirmDialog from '../../components/ConfirmDialog.vue'
 import PhotoCaptionDialog from '../../components/child/PhotoCaptionDialog.vue'
-import TagSelector from '../../components/child/TagSelector.vue'
+import TagSelector from '../../components/TagSelector.vue'
+import TagChip from '../../components/TagChip.vue'
 import TagFilterSelect from '../../components/TagFilterSelect.vue'
 import { getTodayJST } from '../../utils/date'
 
@@ -20,7 +21,7 @@ const { photos, loadTodayPhotos, deletePhoto } = usePhotos()
 const { comments, loadTodayComments, addComment, updateComment, deleteComment } = useComments()
 const { pickAndCompress, uploadPhoto, uploading } = useCamera()
 const { messages, loadTodayMessages } = useMessages()
-const { selectedTagIds, tagOptions, loadTags, matchesTags } = useTagFilter()
+const { selectedTagIds, tagOptions, loadTags, matchesTags, matchesCommentTags } = useTagFilter()
 
 const commentText = ref('')
 const showMessagesOnly = ref(false)
@@ -45,6 +46,7 @@ const previewUrls = ref([])
 // Tag selector state
 const showTagSelector = ref(false)
 const tagSelectorPhotoIds = ref([])
+const tagSelectorCommentIds = ref([])
 const tagSelectorCurrentTags = ref([])
 
 const today = computed(() => {
@@ -55,9 +57,10 @@ const today = computed(() => {
 
 const timeline = computed(() => {
   const filteredPhotos = photos.value.filter(p => matchesTags(p))
+  const filteredComments = comments.value.filter(c => matchesCommentTags(c))
   const items = [
     ...filteredPhotos.map(p => ({ type: 'photo', data: p, time: new Date(p.captured_at) })),
-    ...comments.value.map(c => ({ type: 'comment', data: c, time: new Date(c.commented_at) })),
+    ...filteredComments.map(c => ({ type: 'comment', data: c, time: new Date(c.commented_at) })),
     ...messages.value.map(m => ({ type: 'message', data: m, time: new Date(m.created_at) })),
   ]
   items.sort((a, b) => b.time - a.time)
@@ -154,6 +157,7 @@ async function handleCaptionSubmit(caption) {
       const uploaded = photos.value.find(p => p.id === photoIds[0])
       if (uploaded) {
         tagSelectorPhotoIds.value = photoIds
+        tagSelectorCommentIds.value = []
         tagSelectorCurrentTags.value = uploaded.tags || []
         showTagSelector.value = true
       }
@@ -166,14 +170,30 @@ async function handleCaptionSubmit(caption) {
 
 function openTagSelector(photo) {
   tagSelectorPhotoIds.value = [photo.id]
+  tagSelectorCommentIds.value = []
   tagSelectorCurrentTags.value = photo.tags || []
   showTagSelector.value = true
 }
 
+function openCommentTagSelector(comment) {
+  tagSelectorPhotoIds.value = []
+  tagSelectorCommentIds.value = [comment.id]
+  tagSelectorCurrentTags.value = comment.tags || []
+  showTagSelector.value = true
+}
+
 async function handleTagUpdated() {
-  await loadTodayPhotos(currentUser.value.id)
-  const photo = photos.value.find(p => p.id === tagSelectorPhotoIds.value[0])
-  if (photo) tagSelectorCurrentTags.value = photo.tags || []
+  await Promise.all([
+    loadTodayPhotos(currentUser.value.id),
+    loadTodayComments(currentUser.value.id),
+  ])
+  if (tagSelectorPhotoIds.value.length > 0) {
+    const photo = photos.value.find(p => p.id === tagSelectorPhotoIds.value[0])
+    if (photo) tagSelectorCurrentTags.value = photo.tags || []
+  } else if (tagSelectorCommentIds.value.length > 0) {
+    const comment = comments.value.find(c => c.id === tagSelectorCommentIds.value[0])
+    if (comment) tagSelectorCurrentTags.value = comment.tags || []
+  }
 }
 
 async function handleAddComment() {
@@ -183,6 +203,11 @@ async function handleAddComment() {
     await addComment(currentUser.value.id, text)
     commentText.value = ''
     await loadTodayComments(currentUser.value.id)
+    // Open tag selector for the newly added comment (latest by commented_at)
+    const latest = comments.value[comments.value.length - 1]
+    if (latest) {
+      openCommentTagSelector(latest)
+    }
   } catch {
     snackbarMsg.value = 'コメントの追加に失敗しました'
     snackbar.value = true
@@ -320,12 +345,16 @@ async function handleSaveEdit() {
           :comment="item.data"
           @edit="openEditDialog(item.data)"
           @delete="requestDelete('comment', item.data)"
+          @tag="openCommentTagSelector(item.data)"
         />
         <!-- Message from parent -->
         <v-card v-else-if="item.type === 'message'" variant="tonal" color="green" class="message-bubble">
           <v-card-text class="pa-3">
             <div v-if="item.data.message_type === 'stamp'" class="text-h4">{{ item.data.content }}</div>
             <div v-else class="text-body-2" style="white-space: pre-wrap;">{{ item.data.content }}</div>
+            <div v-if="item.data.tags && item.data.tags.length > 0" class="d-flex flex-wrap ga-1 mt-1">
+              <TagChip v-for="tag in item.data.tags" :key="tag.id" :tag="tag" />
+            </div>
             <div class="text-caption text-grey mt-1">
               {{ new Date(item.data.created_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) }}
             </div>
@@ -345,6 +374,7 @@ async function handleSaveEdit() {
     <TagSelector
       v-model="showTagSelector"
       :photo-ids="tagSelectorPhotoIds"
+      :comment-ids="tagSelectorCommentIds"
       :current-tags="tagSelectorCurrentTags"
       @updated="handleTagUpdated"
     />

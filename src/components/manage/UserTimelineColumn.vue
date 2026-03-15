@@ -7,6 +7,8 @@ import { useTagFilter } from '../../composables/useTagFilter'
 import { getTodayJST } from '../../utils/date'
 import TagChip from '../../components/TagChip.vue'
 import TagFilterSelect from '../../components/TagFilterSelect.vue'
+import TagSelector from '../../components/TagSelector.vue'
+import ConfirmDialog from '../../components/ConfirmDialog.vue'
 
 const props = defineProps({
   user: { type: Object, required: true },
@@ -15,13 +17,24 @@ const emit = defineEmits(['send-message'])
 
 const { loadPhotos } = usePhotos()
 const { loadComments } = useComments()
-const { loadMessages } = useMessages()
+const { loadMessages, updateMessage, deleteMessage } = useMessages()
 const { selectedTagIds, tagOptions, loadTags } = useTagFilter()
 
 const loading = ref(true)
 const items = ref([])
 const expandedPhoto = ref(null)
 const showFilter = ref(false)
+const showTagSelector = ref(false)
+const tagSelectorCommentIds = ref([])
+const tagSelectorMessageIds = ref([])
+const tagSelectorCurrentTags = ref([])
+
+const showEditDialog = ref(false)
+const editTarget = ref(null)
+const editText = ref('')
+const editSaving = ref(false)
+const showConfirm = ref(false)
+const confirmTarget = ref(null)
 
 const dateFrom = ref(getTodayJST())
 const dateTo = ref(getTodayJST())
@@ -35,9 +48,10 @@ async function fetchData() {
   try {
     const from = dateFrom.value
     const to = dateTo.value
-    const fromDate = new Date(from + 'T00:00:00')
-    const toDate = new Date(to + 'T00:00:00')
-    toDate.setDate(toDate.getDate() + 1)
+    const fromISO = new Date(from + 'T00:00:00+09:00').toISOString()
+    const toEnd = new Date(to + 'T00:00:00+09:00')
+    toEnd.setDate(toEnd.getDate() + 1)
+    const toISO = toEnd.toISOString()
     const [photoData, commentData, messageData] = await Promise.all([
       loadPhotos(props.user.id, {
         dateFrom: from,
@@ -46,8 +60,8 @@ async function fetchData() {
       }),
       loadComments(props.user.id, { dateFrom: from, dateTo: to }),
       loadMessages(props.user.id, {
-        dateFrom: fromDate.toISOString(),
-        dateTo: toDate.toISOString(),
+        dateFrom: fromISO,
+        dateTo: toISO,
       }),
     ])
 
@@ -78,7 +92,78 @@ onMounted(async () => {
   await fetchData()
 })
 
-defineExpose({ refresh: fetchData })
+function openCommentTagSelector(comment) {
+  tagSelectorCommentIds.value = [comment.id]
+  tagSelectorMessageIds.value = []
+  tagSelectorCurrentTags.value = comment.tags || []
+  showTagSelector.value = true
+}
+
+function openMessageTagSelector(message) {
+  tagSelectorMessageIds.value = [message.id]
+  tagSelectorCommentIds.value = []
+  tagSelectorCurrentTags.value = message.tags || []
+  showTagSelector.value = true
+}
+
+async function handleTagUpdated() {
+  await fetchData()
+  // タグトグル後に currentTags を更新して UI に反映する
+  if (tagSelectorCommentIds.value.length > 0) {
+    const comment = items.value.find(i => i.type === 'comment' && i.data.id === tagSelectorCommentIds.value[0])
+    if (comment) tagSelectorCurrentTags.value = comment.data.tags || []
+  } else if (tagSelectorMessageIds.value.length > 0) {
+    const message = items.value.find(i => i.type === 'message' && i.data.id === tagSelectorMessageIds.value[0])
+    if (message) tagSelectorCurrentTags.value = message.data.tags || []
+  }
+}
+
+function openEditMessage(message) {
+  editTarget.value = message
+  editText.value = message.content
+  showEditDialog.value = true
+}
+
+async function handleSaveEdit() {
+  const text = editText.value.trim()
+  if (!text || !editTarget.value) return
+  editSaving.value = true
+  try {
+    await updateMessage(editTarget.value.id, text)
+    showEditDialog.value = false
+    editTarget.value = null
+    await fetchData()
+  } catch (e) {
+    console.error(e)
+  } finally {
+    editSaving.value = false
+  }
+}
+
+function requestDeleteMessage(message) {
+  confirmTarget.value = message
+  showConfirm.value = true
+}
+
+async function handleConfirmDelete() {
+  if (!confirmTarget.value) return
+  try {
+    await deleteMessage(confirmTarget.value.id)
+    await fetchData()
+  } catch (e) {
+    console.error(e)
+  }
+  confirmTarget.value = null
+}
+
+function openTagSelectorForMessage(messageId) {
+  tagSelectorMessageIds.value = [messageId]
+  tagSelectorCommentIds.value = []
+  tagSelectorCurrentTags.value = []
+  showTagSelector.value = true
+}
+
+defineExpose({ refresh: fetchData, openTagSelectorForMessage })
 </script>
 
 <template>
@@ -141,16 +226,28 @@ defineExpose({ refresh: fetchData })
           <v-card v-if="item.type === 'comment'" variant="tonal" color="grey" class="rounded-lg">
             <v-card-text class="pa-2">
               <div class="text-body-2 text-black" style="white-space: pre-wrap;">{{ item.data.content }}</div>
-              <div class="text-caption text-grey mt-1">{{ formatTime(item.time) }}</div>
+              <div v-if="item.data.tags && item.data.tags.length > 0" class="d-flex flex-wrap ga-1 mt-1">
+                <TagChip v-for="tag in item.data.tags" :key="tag.id" :tag="tag" />
+              </div>
+              <div class="d-flex align-center mt-1">
+                <span class="text-caption text-grey">{{ formatTime(item.time) }}</span>
+                <v-btn icon="mdi-tag-outline" variant="text" size="x-small" density="compact" class="ml-1" @click="openCommentTagSelector(item.data)" />
+              </div>
             </v-card-text>
           </v-card>
           <v-card v-if="item.type === 'message'" variant="tonal" color="green" class="rounded-lg">
             <v-card-text class="pa-2">
               <div v-if="item.data.message_type === 'stamp'" class="text-h5">{{ item.data.content }}</div>
               <div v-else class="text-body-2" style="white-space: pre-wrap;">{{ item.data.content }}</div>
-              <div class="text-caption text-grey mt-1">
-                <v-icon size="x-small" class="mr-1">mdi-message-text</v-icon>
-                {{ formatTime(item.time) }}
+              <div v-if="item.data.tags && item.data.tags.length > 0" class="d-flex flex-wrap ga-1 mt-1">
+                <TagChip v-for="tag in item.data.tags" :key="tag.id" :tag="tag" />
+              </div>
+              <div class="d-flex align-center mt-1">
+                <v-icon size="x-small" class="mr-1 text-grey">mdi-message-text</v-icon>
+                <span class="text-caption text-grey">{{ formatTime(item.time) }}</span>
+                <v-btn v-if="item.data.message_type !== 'stamp'" icon="mdi-pencil-outline" variant="text" size="x-small" density="compact" color="grey-darken-1" class="ml-1" @click="openEditMessage(item.data)" />
+                <v-btn icon="mdi-tag-outline" variant="text" size="x-small" density="compact" color="primary" class="ml-1" @click="openMessageTagSelector(item.data)" />
+                <v-btn icon="mdi-delete-outline" variant="text" size="x-small" density="compact" color="error" class="ml-1" @click="requestDeleteMessage(item.data)" />
               </div>
             </v-card-text>
           </v-card>
@@ -171,6 +268,53 @@ defineExpose({ refresh: fetchData })
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <TagSelector
+      v-model="showTagSelector"
+      :comment-ids="tagSelectorCommentIds"
+      :message-ids="tagSelectorMessageIds"
+      :current-tags="tagSelectorCurrentTags"
+      :user-id="user.id"
+      @updated="handleTagUpdated"
+    />
+
+    <!-- メッセージ編集ダイアログ -->
+    <v-dialog v-model="showEditDialog" max-width="400">
+      <v-card>
+        <v-card-title class="text-body-1 font-weight-bold">メッセージを編集</v-card-title>
+        <v-card-text>
+          <v-textarea
+            v-model="editText"
+            label="メッセージ"
+            hide-details
+            density="compact"
+            rows="3"
+            auto-grow
+            max-rows="8"
+            autofocus
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="showEditDialog = false">キャンセル</v-btn>
+          <v-btn
+            color="primary"
+            variant="flat"
+            :loading="editSaving"
+            :disabled="!editText.trim()"
+            @click="handleSaveEdit"
+          >
+            保存
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <ConfirmDialog
+      v-model="showConfirm"
+      message="このメッセージを削除しますか？"
+      @confirm="handleConfirmDelete"
+    />
   </v-card>
 </template>
 

@@ -5,21 +5,28 @@ import { getTodayJST } from '../utils/date'
 const comments = ref([])
 
 export function useComments() {
+  function mapCommentTags(data) {
+    return data.map(c => ({
+      ...c,
+      tags: (c.comment_tags || []).map(ct => ct.tags).filter(Boolean),
+    }))
+  }
+
   async function loadTodayComments(userId) {
     const { data, error } = await supabase
       .from('comments')
-      .select('*')
+      .select('*, comment_tags(tags(id, name, type))')
       .eq('user_id', userId)
       .eq('diary_date', getTodayJST())
       .order('commented_at', { ascending: true })
     if (error) throw error
-    comments.value = data
+    comments.value = mapCommentTags(data)
   }
 
   async function loadComments(userId, { dateFrom, dateTo } = {}) {
     let query = supabase
       .from('comments')
-      .select('*')
+      .select('*, comment_tags(tags(id, name, type))')
       .eq('user_id', userId)
       .order('commented_at', { ascending: false })
 
@@ -28,7 +35,7 @@ export function useComments() {
 
     const { data, error } = await query
     if (error) throw error
-    return data
+    return mapCommentTags(data)
   }
 
   async function addComment(userId, content) {

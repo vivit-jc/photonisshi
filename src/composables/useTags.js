@@ -91,6 +91,40 @@ export function useTags() {
     if (error) throw error
   }
 
+  // --- Comment-tag operations (comment_tags pivot) ---
+  async function attachCommentTag(commentId, tagId) {
+    const { error } = await supabase
+      .from('comment_tags')
+      .insert({ comment_id: commentId, tag_id: tagId })
+    if (error) throw error
+  }
+
+  async function detachCommentTag(commentId, tagId) {
+    const { error } = await supabase
+      .from('comment_tags')
+      .delete()
+      .eq('comment_id', commentId)
+      .eq('tag_id', tagId)
+    if (error) throw error
+  }
+
+  // --- Message-tag operations (message_tags pivot) ---
+  async function attachMessageTag(messageId, tagId) {
+    const { error } = await supabase
+      .from('message_tags')
+      .insert({ message_id: messageId, tag_id: tagId })
+    if (error) throw error
+  }
+
+  async function detachMessageTag(messageId, tagId) {
+    const { error } = await supabase
+      .from('message_tags')
+      .delete()
+      .eq('message_id', messageId)
+      .eq('tag_id', tagId)
+    if (error) throw error
+  }
+
   async function getPhotoTags(photoId) {
     const { data, error } = await supabase
       .from('photo_tags')
@@ -114,5 +148,9 @@ export function useTags() {
     attachTag,
     detachTag,
     getPhotoTags,
+    attachCommentTag,
+    detachCommentTag,
+    attachMessageTag,
+    detachMessageTag,
   }
 }

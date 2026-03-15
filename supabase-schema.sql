@@ -54,6 +54,13 @@ CREATE TABLE comments (
   diary_date DATE NOT NULL
 );
 
+-- Comment Tags (多対多)
+CREATE TABLE comment_tags (
+  comment_id UUID REFERENCES comments(id) ON DELETE CASCADE NOT NULL,
+  tag_id UUID REFERENCES tags(id) ON DELETE CASCADE NOT NULL,
+  PRIMARY KEY (comment_id, tag_id)
+);
+
 -- Messages
 CREATE TABLE messages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -63,6 +70,13 @@ CREATE TABLE messages (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Message Tags (多対多)
+CREATE TABLE message_tags (
+  message_id UUID REFERENCES messages(id) ON DELETE CASCADE NOT NULL,
+  tag_id UUID REFERENCES tags(id) ON DELETE CASCADE NOT NULL,
+  PRIMARY KEY (message_id, tag_id)
+);
+
 -- RLS: プロトタイプのため全操作許可
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tags ENABLE ROW LEVEL SECURITY;
@@ -70,7 +84,9 @@ ALTER TABLE gps_tags ENABLE ROW LEVEL SECURITY;
 ALTER TABLE photos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE photo_tags ENABLE ROW LEVEL SECURITY;
 ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE comment_tags ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE message_tags ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow all on users" ON users FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on tags" ON tags FOR ALL USING (true) WITH CHECK (true);
@@ -78,7 +94,9 @@ CREATE POLICY "Allow all on gps_tags" ON gps_tags FOR ALL USING (true) WITH CHEC
 CREATE POLICY "Allow all on photos" ON photos FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on photo_tags" ON photo_tags FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on comments" ON comments FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on comment_tags" ON comment_tags FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on messages" ON messages FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on message_tags" ON message_tags FOR ALL USING (true) WITH CHECK (true);
 
 -- Storage: Supabase Dashboard で "photos" バケットを public で作成後、以下を実行
 CREATE POLICY "Allow all uploads" ON storage.objects

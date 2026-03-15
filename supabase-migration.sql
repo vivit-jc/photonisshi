@@ -51,3 +51,23 @@ ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all on gps_tags" ON gps_tags FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on photo_tags" ON photo_tags FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on messages" ON messages FOR ALL USING (true) WITH CHECK (true);
+
+-- 9. 新テーブル: comment_tags（コメントとタグの多対多）
+CREATE TABLE comment_tags (
+  comment_id UUID REFERENCES comments(id) ON DELETE CASCADE NOT NULL,
+  tag_id UUID REFERENCES tags(id) ON DELETE CASCADE NOT NULL,
+  PRIMARY KEY (comment_id, tag_id)
+);
+
+ALTER TABLE comment_tags ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all on comment_tags" ON comment_tags FOR ALL USING (true) WITH CHECK (true);
+
+-- 10. 新テーブル: message_tags（メッセージとタグの多対多）
+CREATE TABLE message_tags (
+  message_id UUID REFERENCES messages(id) ON DELETE CASCADE NOT NULL,
+  tag_id UUID REFERENCES tags(id) ON DELETE CASCADE NOT NULL,
+  PRIMARY KEY (message_id, tag_id)
+);
+
+ALTER TABLE message_tags ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all on message_tags" ON message_tags FOR ALL USING (true) WITH CHECK (true);

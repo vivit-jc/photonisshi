@@ -9,7 +9,7 @@ import { getTodayJST, getDaysAgoJST } from '../../utils/date'
 import TagChip from '../../components/TagChip.vue'
 import TagFilterSelect from '../../components/TagFilterSelect.vue'
 import ConfirmDialog from '../../components/ConfirmDialog.vue'
-import TagSelector from '../../components/child/TagSelector.vue'
+import TagSelector from '../../components/TagSelector.vue'
 
 const { currentUser } = useAuth()
 const { loadPhotos, deletePhoto } = usePhotos()
@@ -33,6 +33,7 @@ const editSaving = ref(false)
 // Tag selector
 const showTagSelector = ref(false)
 const tagSelectorPhotoId = ref(null)
+const tagSelectorCommentIds = ref([])
 const tagSelectorCurrentTags = ref([])
 
 // Date range filter: default 7 days
@@ -176,14 +177,27 @@ async function handleSaveEdit() {
 
 function openTagSelector(photo) {
   tagSelectorPhotoId.value = photo.id
+  tagSelectorCommentIds.value = []
   tagSelectorCurrentTags.value = photo.tags || []
+  showTagSelector.value = true
+}
+
+function openCommentTagSelector(comment) {
+  tagSelectorPhotoId.value = null
+  tagSelectorCommentIds.value = [comment.id]
+  tagSelectorCurrentTags.value = comment.tags || []
   showTagSelector.value = true
 }
 
 async function handleTagUpdated() {
   await fetchData()
-  const photo = items.value.find(i => i.type === 'photo' && i.data.id === tagSelectorPhotoId.value)
-  if (photo) tagSelectorCurrentTags.value = photo.data.tags || []
+  if (tagSelectorPhotoId.value) {
+    const photo = items.value.find(i => i.type === 'photo' && i.data.id === tagSelectorPhotoId.value)
+    if (photo) tagSelectorCurrentTags.value = photo.data.tags || []
+  } else if (tagSelectorCommentIds.value.length > 0) {
+    const comment = items.value.find(i => i.type === 'comment' && i.data.id === tagSelectorCommentIds.value[0])
+    if (comment) tagSelectorCurrentTags.value = comment.data.tags || []
+  }
 }
 </script>
 
@@ -239,6 +253,9 @@ async function handleTagUpdated() {
               @click="expandedComment = item.data"
             >
               <div class="text-caption text-truncate-2">{{ item.data.content }}</div>
+              <div v-if="item.data.tags && item.data.tags.length > 0" class="d-flex flex-wrap ga-1 mt-1">
+                <TagChip v-for="tag in item.data.tags" :key="tag.id" :tag="tag" />
+              </div>
               <div class="text-caption text-grey mt-auto">{{ formatTime(item.time) }}</div>
             </div>
             <div
@@ -297,6 +314,9 @@ async function handleTagUpdated() {
       <v-card v-if="expandedComment">
         <v-card-text class="pa-4">
           <div class="text-body-1" style="white-space: pre-wrap;">{{ expandedComment.content }}</div>
+          <div v-if="expandedComment.tags && expandedComment.tags.length > 0" class="d-flex flex-wrap ga-1 mt-2">
+            <TagChip v-for="tag in expandedComment.tags" :key="tag.id" :tag="tag" />
+          </div>
           <div class="text-caption text-grey mt-2">
             {{ formatTime(expandedComment.commented_at) }}
           </div>
@@ -304,6 +324,7 @@ async function handleTagUpdated() {
         <v-card-actions>
           <v-btn icon="mdi-delete-outline" color="error" variant="text" size="small" @click="requestDeleteComment(expandedComment)" />
           <v-btn icon="mdi-pencil-outline" color="grey-darken-1" variant="text" size="small" @click="openEditDialog(expandedComment)" />
+          <v-btn icon="mdi-tag-outline" color="primary" variant="text" size="small" @click="openCommentTagSelector(expandedComment)" />
           <v-spacer />
           <v-btn variant="text" @click="expandedComment = null">閉じる</v-btn>
         </v-card-actions>
@@ -337,7 +358,8 @@ async function handleTagUpdated() {
     <!-- Tag Selector -->
     <TagSelector
       v-model="showTagSelector"
-      :photo-id="tagSelectorPhotoId"
+      :photo-ids="tagSelectorPhotoId ? [tagSelectorPhotoId] : []"
+      :comment-ids="tagSelectorCommentIds"
       :current-tags="tagSelectorCurrentTags"
       @updated="handleTagUpdated"
     />
