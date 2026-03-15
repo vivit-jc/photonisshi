@@ -44,7 +44,7 @@ const previewUrls = ref([])
 
 // Tag selector state
 const showTagSelector = ref(false)
-const tagSelectorPhotoId = ref(null)
+const tagSelectorPhotoIds = ref([])
 const tagSelectorCurrentTags = ref([])
 
 const today = computed(() => {
@@ -149,11 +149,11 @@ async function handleCaptionSubmit(caption) {
 
     await reload()
 
-    // Open tag selector for the first uploaded photo
+    // Open tag selector for all uploaded photos
     if (photoIds.length > 0) {
       const uploaded = photos.value.find(p => p.id === photoIds[0])
       if (uploaded) {
-        tagSelectorPhotoId.value = photoIds[0]
+        tagSelectorPhotoIds.value = photoIds
         tagSelectorCurrentTags.value = uploaded.tags || []
         showTagSelector.value = true
       }
@@ -165,14 +165,14 @@ async function handleCaptionSubmit(caption) {
 }
 
 function openTagSelector(photo) {
-  tagSelectorPhotoId.value = photo.id
+  tagSelectorPhotoIds.value = [photo.id]
   tagSelectorCurrentTags.value = photo.tags || []
   showTagSelector.value = true
 }
 
 async function handleTagUpdated() {
   await loadTodayPhotos(currentUser.value.id)
-  const photo = photos.value.find(p => p.id === tagSelectorPhotoId.value)
+  const photo = photos.value.find(p => p.id === tagSelectorPhotoIds.value[0])
   if (photo) tagSelectorCurrentTags.value = photo.tags || []
 }
 
@@ -344,7 +344,7 @@ async function handleSaveEdit() {
     <!-- Tag Selector -->
     <TagSelector
       v-model="showTagSelector"
-      :photo-id="tagSelectorPhotoId"
+      :photo-ids="tagSelectorPhotoIds"
       :current-tags="tagSelectorCurrentTags"
       @updated="handleTagUpdated"
     />

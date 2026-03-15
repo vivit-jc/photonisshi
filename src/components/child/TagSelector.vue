@@ -5,7 +5,7 @@ import { useTags } from '../../composables/useTags'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  photoId: { type: String, default: null },
+  photoIds: { type: Array, default: () => [] },
   currentTags: { type: Array, default: () => [] },
 })
 const emit = defineEmits(['update:modelValue', 'updated'])
@@ -26,13 +26,13 @@ onMounted(async () => {
 })
 
 async function toggle(tagId) {
-  if (!props.photoId) return
+  if (props.photoIds.length === 0) return
   loading.value = true
   try {
     if (attachedIds.value.has(tagId)) {
-      await detachTag(props.photoId, tagId)
+      await Promise.all(props.photoIds.map(id => detachTag(id, tagId)))
     } else {
-      await attachTag(props.photoId, tagId)
+      await Promise.all(props.photoIds.map(id => attachTag(id, tagId)))
     }
     emit('updated')
   } catch (e) {
