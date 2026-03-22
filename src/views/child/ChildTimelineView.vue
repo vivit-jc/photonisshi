@@ -60,7 +60,7 @@ const groupedByDate = computed(() => {
     .map(([date, entries]) => ({
       date,
       label: formatDate(date),
-      entries: entries.sort((a, b) => new Date(a.time) - new Date(b.time)),
+      entries: entries.sort((a, b) => new Date(b.time) - new Date(a.time)),
     }))
 })
 
@@ -101,7 +101,13 @@ async function fetchData() {
       time: p.captured_at,
     }))
 
-    const commentItems = commentData.map(c => ({
+    const filteredComments = selectedTagIds.value.length > 0
+      ? commentData.filter(c => {
+          const ids = (c.tags || []).map(t => t.id)
+          return selectedTagIds.value.every(id => ids.includes(id))
+        })
+      : commentData
+    const commentItems = filteredComments.map(c => ({
       type: 'comment',
       data: c,
       diary_date: c.diary_date,
