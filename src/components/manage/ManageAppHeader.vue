@@ -10,6 +10,8 @@ const navItems = [
   { title: 'ダッシュボード', icon: 'mdi-view-dashboard', to: '/manage' },
   { title: '共通タグ', icon: 'mdi-tag-multiple', to: '/manage/tags' },
   { title: 'GPSタグ', icon: 'mdi-map-marker', to: '/manage/gps-tags' },
+  { title: '店舗タイムライン', icon: 'mdi-store', to: '/manage/store-timeline' },
+  { title: '売上入力', icon: 'mdi-currency-jpy', to: '/manage/sales' },
   { title: '更新履歴', icon: 'mdi-history', to: '/manage/changelog' },
 ]
 </script>

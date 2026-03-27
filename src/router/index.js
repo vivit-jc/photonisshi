@@ -55,6 +55,18 @@ const routes = [
     meta: { app: 'manage', requiresAuth: false, title: 'GPSタグ' },
   },
   {
+    path: '/manage/store-timeline',
+    name: 'manage-store-timeline',
+    component: () => import('../views/manage/ManageStoreTimelineView.vue'),
+    meta: { app: 'manage', requiresAuth: false, title: '店舗タイムライン' },
+  },
+  {
+    path: '/manage/sales',
+    name: 'manage-sales',
+    component: () => import('../views/manage/ManageSalesInputView.vue'),
+    meta: { app: 'manage', requiresAuth: false, title: '売上入力' },
+  },
+  {
     path: '/manage/changelog',
     name: 'manage-changelog',
     component: () => import('../views/child/ChangelogView.vue'),
