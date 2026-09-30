@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { supabase } from '../../plugins/supabase'
+import { USER_COLUMNS } from '../../composables/useAuth'
 import { useMessages } from '../../composables/useMessages'
 import UserTimelineColumn from '../../components/manage/UserTimelineColumn.vue'
 import MessageInput from '../../components/manage/MessageInput.vue'
@@ -38,7 +39,7 @@ onMounted(async () => {
   try {
     const { data, error } = await supabase
       .from('users')
-      .select('*')
+      .select(USER_COLUMNS)
       .order('username', { ascending: true })
     if (error) throw error
     users.value = data

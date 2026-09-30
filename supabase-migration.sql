@@ -71,3 +71,40 @@ CREATE TABLE message_tags (
 
 ALTER TABLE message_tags ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all on message_tags" ON message_tags FOR ALL USING (true) WITH CHECK (true);
+
+-- 11. 管理画面ログイン用パスワード（bcrypt ハッシュで users に保存し、照合は関数経由のみ）
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
+
+ALTER TABLE users ADD COLUMN password_hash TEXT;
+
+-- password_hash を anon / authenticated から読み書きできないよう列単位で権限を付与
+-- （users に列を追加したときは、ここの GRANT にも追加すること）
+REVOKE SELECT, INSERT, UPDATE ON users FROM anon, authenticated;
+GRANT SELECT (id, username, created_at) ON users TO anon, authenticated;
+GRANT INSERT (username) ON users TO anon, authenticated;
+GRANT UPDATE (username) ON users TO anon, authenticated;
+
+-- 管理画面ログインの照合はこの関数経由でのみ行う（ハッシュはクライアントに渡らない）
+-- パスワード未設定（password_hash が NULL）のユーザーは常に不一致
+CREATE OR REPLACE FUNCTION verify_manage_login(p_username TEXT, p_password TEXT)
+RETURNS TABLE (id UUID, username TEXT)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+  SELECT u.id, u.username FROM users u
+  WHERE u.username = p_username
+    AND u.password_hash IS NOT NULL
+    AND u.password_hash = crypt(p_password, u.password_hash);
+$$;
+
+REVOKE ALL ON FUNCTION verify_manage_login(TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION verify_manage_login(TEXT, TEXT) TO anon, authenticated;
+
+-- パスワードの設定・変更（ユーザー名とパスワードを置き換えて SQL Editor で実行）
+-- UPDATE users
+--   SET password_hash = extensions.crypt('ここにパスワード', extensions.gen_salt('bf'))
+--   WHERE username = 'ここにユーザー名';
+-- 管理画面へのログインを取り消す場合
+-- UPDATE users SET password_hash = NULL WHERE username = 'ここにユーザー名';

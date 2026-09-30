@@ -1,8 +1,10 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useManageAuth } from '../../composables/useManageAuth'
 
 const route = useRoute()
+const { manageUser, manageLogout } = useManageAuth()
 const drawer = ref(false)
 const pageTitle = computed(() => route.meta?.title || '管理')
 
@@ -35,5 +37,15 @@ const navItems = [
         @click="drawer = false"
       />
     </v-list>
+    <template #append>
+      <v-list nav density="compact">
+        <v-list-item
+          prepend-icon="mdi-logout"
+          title="ログアウト"
+          :subtitle="manageUser?.username"
+          @click="drawer = false; manageLogout()"
+        />
+      </v-list>
+    </template>
   </v-navigation-drawer>
 </template>

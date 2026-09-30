@@ -3,6 +3,8 @@ import { supabase } from '../plugins/supabase'
 
 const currentUser = ref(null)
 const STORAGE_KEY = 'photonisshi_username'
+// password_hash は列権限で読めないため、取得する列を明示する
+export const USER_COLUMNS = 'id, username, created_at'
 
 export function useAuth() {
   function loadSavedUsername() {
@@ -21,7 +23,7 @@ export function useAuth() {
   async function findUser(username) {
     const { data, error } = await supabase
       .from('users')
-      .select('*')
+      .select(USER_COLUMNS)
       .eq('username', username)
       .single()
     if (error) return null
@@ -32,7 +34,7 @@ export function useAuth() {
     const { data, error } = await supabase
       .from('users')
       .insert({ username })
-      .select()
+      .select(USER_COLUMNS)
       .single()
     if (error) throw error
     return data
