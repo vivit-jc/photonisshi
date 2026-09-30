@@ -67,6 +67,12 @@ const routes = [
     meta: { app: 'manage', requiresAuth: false, requiresManageAuth: true, title: '売上入力' },
   },
   {
+    path: '/manage/users',
+    name: 'manage-users',
+    component: () => import('../views/manage/ManageUsersView.vue'),
+    meta: { app: 'manage', requiresAuth: false, requiresManageAuth: true, requiresAdminAuth: true, title: 'ユーザー管理' },
+  },
+  {
     path: '/manage/changelog',
     name: 'manage-changelog',
     component: () => import('../views/child/ChangelogView.vue'),

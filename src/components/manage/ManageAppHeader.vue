@@ -8,14 +8,17 @@ const { manageUser, manageLogout } = useManageAuth()
 const drawer = ref(false)
 const pageTitle = computed(() => route.meta?.title || '管理')
 
-const navItems = [
+const allNavItems = [
   { title: 'ダッシュボード', icon: 'mdi-view-dashboard', to: '/manage' },
   { title: '共通タグ', icon: 'mdi-tag-multiple', to: '/manage/tags' },
   { title: 'GPSタグ', icon: 'mdi-map-marker', to: '/manage/gps-tags' },
   { title: '店舗タイムライン', icon: 'mdi-store', to: '/manage/store-timeline' },
   { title: '売上入力', icon: 'mdi-currency-jpy', to: '/manage/sales' },
+  { title: 'ユーザー管理', icon: 'mdi-account-cog', to: '/manage/users', adminOnly: true },
   { title: '更新履歴', icon: 'mdi-history', to: '/manage/changelog' },
 ]
+// 表示の切り替えのみ。実際の権限はユーザー管理画面のログインで DB 側が確認する
+const navItems = computed(() => allNavItems.filter(item => !item.adminOnly || manageUser.value?.is_admin))
 </script>
 
 <template>

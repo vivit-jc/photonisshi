@@ -1,5 +1,5 @@
 <script setup>
-import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from './composables/useAuth'
 import { useManageAuth } from './composables/useManageAuth'
@@ -12,13 +12,24 @@ const ManageLoginDialog = defineAsyncComponent(() => import('./components/manage
 const route = useRoute()
 const router = useRouter()
 const { currentUser, restoreSession } = useAuth()
-const { isManageAuthenticated } = useManageAuth()
+const {
+  manageUser, isManageAuthenticated, isAdminAuthenticated,
+  loadSavedManageUsername, manageLogin, adminLogin, adminLogout,
+} = useManageAuth()
 const showLogin = ref(false)
 const loading = ref(true)
 
 const isManageApp = computed(() => route.meta.app === 'manage')
 const isChildApp = computed(() => route.meta.app === 'child')
 const needsManageLogin = computed(() => !!route.meta.requiresManageAuth && !isManageAuthenticated.value)
+const needsAdminLogin = computed(() =>
+  !needsManageLogin.value && !!route.meta.requiresAdminAuth && !isAdminAuthenticated.value,
+)
+
+// ユーザー管理画面を離れたら admin ログインを解除する
+watch(() => route.meta.requiresAdminAuth, (now, before) => {
+  if (before && !now) adminLogout()
+})
 
 onMounted(async () => {
   const restored = await restoreSession()
@@ -55,13 +66,29 @@ function onGoRegister() {
       <v-container v-if="loading" class="d-flex justify-center align-center" style="min-height: 60vh">
         <v-progress-circular indeterminate color="primary" size="48" />
       </v-container>
-      <router-view v-else-if="!needsManageLogin" />
+      <router-view v-else-if="!needsManageLogin && !needsAdminLogin" />
     </v-main>
     <LoginDialog
       v-model="showLogin"
       @logged-in="onLoggedIn"
       @go-register="onGoRegister"
     />
-    <ManageLoginDialog v-if="isManageApp" :model-value="needsManageLogin" />
+    <ManageLoginDialog
+      v-if="isManageApp"
+      :model-value="needsManageLogin"
+      :initial-username="loadSavedManageUsername()"
+      :login="manageLogin"
+    />
+    <ManageLoginDialog
+      v-if="isManageApp"
+      :model-value="needsAdminLogin"
+      title="ユーザー管理にログイン"
+      description="ユーザー管理画面は admin 権限のあるユーザーのみ利用できます"
+      :initial-username="manageUser?.username ?? ''"
+      failed-message="ユーザー名またはパスワードが違うか、admin 権限がありません"
+      :login="adminLogin"
+      cancelable
+      @cancel="router.push('/manage')"
+    />
   </v-app>
 </template>
