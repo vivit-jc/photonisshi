@@ -21,6 +21,8 @@ const loading = ref(true)
 
 const isManageApp = computed(() => route.meta.app === 'manage')
 const isChildApp = computed(() => route.meta.app === 'child')
+// ログイン前に画面をマウントすると currentUser が null のままデータ取得されないため、ログインまで描画しない
+const needsLogin = computed(() => !!route.meta.requiresAuth && !currentUser.value)
 const needsManageLogin = computed(() => !!route.meta.requiresManageAuth && !isManageAuthenticated.value)
 const needsAdminLogin = computed(() =>
   !needsManageLogin.value && !!route.meta.requiresAdminAuth && !isAdminAuthenticated.value,
@@ -66,7 +68,7 @@ function onGoRegister() {
       <v-container v-if="loading" class="d-flex justify-center align-center" style="min-height: 60vh">
         <v-progress-circular indeterminate color="primary" size="48" />
       </v-container>
-      <router-view v-else-if="!needsManageLogin && !needsAdminLogin" />
+      <router-view v-else-if="!needsLogin && !needsManageLogin && !needsAdminLogin" />
     </v-main>
     <LoginDialog
       v-model="showLogin"
