@@ -50,7 +50,8 @@ export function useCamera() {
       input.type = 'file'
       if (useCapture) {
         input.accept = 'image/*'
-        input.capture = 'environment'
+        // capture の DOM プロパティ未対応のブラウザでは属性にならずギャラリーが開くため、属性で設定する
+        input.setAttribute('capture', 'environment')
       } else {
         // Android: accept="image/*" と multiple の組み合わせで
         // 複数選択が制限される問題を回避するため、具体的なMIMEタイプを指定
