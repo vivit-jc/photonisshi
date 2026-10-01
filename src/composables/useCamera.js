@@ -42,6 +42,15 @@ export function useCamera() {
   const { getCoords } = useGeolocation()
   const { loadGpsTags, findNearestGpsTag } = useGpsTags()
 
+  // Compress image(s) and get GPS
+  async function compressWithPosition(images) {
+    const [blobs, position] = await Promise.all([
+      Promise.all(images.map(f => compressImage(f))),
+      getCoords(10000),
+    ])
+    return { blobs, position }
+  }
+
   // Pick file(s), compress, and get GPS
   // useCapture=true: camera (single), useCapture=false: gallery (multiple)
   function pickAndCompress(useCapture = true) {
@@ -66,11 +75,7 @@ export function useCamera() {
           return
         }
         try {
-          const [blobs, position] = await Promise.all([
-            Promise.all(files.map(f => compressImage(f))),
-            getCoords(10000),
-          ])
-          resolve({ blobs, position })
+          resolve(await compressWithPosition(files))
         } catch (e) {
           reject(e)
         }
@@ -131,5 +136,5 @@ export function useCamera() {
     }
   }
 
-  return { pickAndCompress, uploadPhoto, uploading }
+  return { pickAndCompress, compressWithPosition, uploadPhoto, uploading }
 }

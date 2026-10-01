@@ -11,6 +11,7 @@ import PhotoThumbnail from '../../components/PhotoThumbnail.vue'
 import CommentBubble from '../../components/CommentBubble.vue'
 import ConfirmDialog from '../../components/ConfirmDialog.vue'
 import PhotoCaptionDialog from '../../components/child/PhotoCaptionDialog.vue'
+import CameraDialog from '../../components/child/CameraDialog.vue'
 import TagSelector from '../../components/TagSelector.vue'
 import TagChip from '../../components/TagChip.vue'
 import TagFilterSelect from '../../components/TagFilterSelect.vue'
@@ -19,7 +20,7 @@ import { getTodayJST } from '../../utils/date'
 const { currentUser } = useAuth()
 const { photos, loadTodayPhotos, updatePhoto, deletePhoto } = usePhotos()
 const { comments, loadTodayComments, addComment, updateComment, deleteComment } = useComments()
-const { pickAndCompress, uploadPhoto, uploading } = useCamera()
+const { pickAndCompress, compressWithPosition, uploadPhoto, uploading } = useCamera()
 const { messages, loadTodayMessages } = useMessages()
 const { selectedTagIds, tagOptions, loadTags, matchesTags, matchesCommentTags } = useTagFilter()
 
@@ -36,6 +37,9 @@ const editTarget = ref(null)
 const editText = ref('')
 const showEditDialog = ref(false)
 const editSaving = ref(false)
+
+// Camera dialog state
+const showCameraDialog = ref(false)
 
 // Caption dialog state
 const showCaptionDialog = ref(false)
@@ -121,18 +125,43 @@ async function reload() {
   ])
 }
 
+function openCaptionDialog({ blobs, position }) {
+  pendingBlobs.value = blobs
+  pendingPosition.value = position
+  previewUrls.value = blobs.map(b => URL.createObjectURL(b))
+  showCaptionDialog.value = true
+}
+
+function showPhotoError(e) {
+  if (e.message !== 'cancelled') {
+    errorDetail.value = e.message || JSON.stringify(e)
+    showErrorDialog.value = true
+  }
+}
+
+// useCapture=true: 端末のカメラアプリ, false: ギャラリー
 async function handleCamera(useCapture = true) {
   try {
-    const { blobs, position } = await pickAndCompress(useCapture)
-    pendingBlobs.value = blobs
-    pendingPosition.value = position
-    previewUrls.value = blobs.map(b => URL.createObjectURL(b))
-    showCaptionDialog.value = true
+    openCaptionDialog(await pickAndCompress(useCapture))
   } catch (e) {
-    if (e.message !== 'cancelled') {
-      errorDetail.value = e.message || JSON.stringify(e)
-      showErrorDialog.value = true
-    }
+    showPhotoError(e)
+  }
+}
+
+// アプリ内ブラウザでも確実にカメラを起動できるよう、アプリ内のカメラ画面で撮影する
+function openCamera() {
+  if (navigator.mediaDevices?.getUserMedia) {
+    showCameraDialog.value = true
+  } else {
+    handleCamera(true)
+  }
+}
+
+async function handleCaptured(blob) {
+  try {
+    openCaptionDialog(await compressWithPosition([blob]))
+  } catch (e) {
+    showPhotoError(e)
   }
 }
 
@@ -319,7 +348,7 @@ async function handleSavePhotoEdit() {
         variant="flat"
         prepend-icon="mdi-camera"
         :loading="uploading"
-        @click="handleCamera(true)"
+        @click="openCamera"
       >
         カメラを起動
       </v-btn>
@@ -398,6 +427,13 @@ async function handleSavePhotoEdit() {
         </v-card>
       </template>
     </div>
+
+    <!-- Camera Dialog -->
+    <CameraDialog
+      v-model="showCameraDialog"
+      @captured="handleCaptured"
+      @fallback="handleCamera(true)"
+    />
 
     <!-- Caption Dialog -->
     <PhotoCaptionDialog
