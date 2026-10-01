@@ -77,6 +77,19 @@ export function useManageAuth() {
     adminUser.value = null
   }
 
+  // 管理画面のセッショントークン付きで RPC を呼ぶ。セッション切れなら管理画面のログインを解除する
+  async function manageRpc(fn, params = {}) {
+    const { data, error } = await supabase.rpc(fn, {
+      p_token: manageUser.value?.token ?? '',
+      ...params,
+    })
+    if (error) {
+      if (error.code === INVALID_SESSION_CODE) setManageUser(null)
+      throw error
+    }
+    return data
+  }
+
   // admin セッショントークン付きで RPC を呼ぶ。セッション切れなら admin ログインを解除する
   async function adminRpc(fn, params = {}) {
     const { data, error } = await supabase.rpc(fn, {
@@ -111,6 +124,7 @@ export function useManageAuth() {
     manageLogout,
     adminLogin,
     adminLogout,
+    manageRpc,
     adminRpc,
     applyRenamed,
   }

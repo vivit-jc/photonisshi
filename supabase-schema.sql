@@ -251,6 +251,25 @@ AS $$
   DELETE FROM manage_sessions WHERE token_hash = encode(digest(p_token, 'sha256'), 'hex');
 $$;
 
+-- ===== 管理画面（manage セッションが必要） =====
+-- 管理画面で閲覧できるユーザー一覧。パスワードのあるユーザー（管理者）は含めない
+CREATE OR REPLACE FUNCTION manage_list_viewable_users(p_token TEXT)
+RETURNS TABLE (id UUID, username TEXT, created_at TIMESTAMPTZ)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+BEGIN
+  PERFORM manage_session_user(p_token, 'manage');
+  RETURN QUERY
+    SELECT u.id, u.username, u.created_at
+    FROM users u
+    WHERE u.password_hash IS NULL
+    ORDER BY u.username;
+END;
+$$;
+
 -- ===== ユーザー管理（admin セッションが必要） =====
 
 CREATE OR REPLACE FUNCTION manage_list_users(p_token TEXT)
@@ -331,6 +350,7 @@ $$;
 REVOKE ALL ON FUNCTION verify_manage_login(TEXT, TEXT) FROM PUBLIC;
 REVOKE ALL ON FUNCTION verify_admin_login(TEXT, TEXT) FROM PUBLIC;
 REVOKE ALL ON FUNCTION manage_logout(TEXT) FROM PUBLIC;
+REVOKE ALL ON FUNCTION manage_list_viewable_users(TEXT) FROM PUBLIC;
 REVOKE ALL ON FUNCTION manage_list_users(TEXT) FROM PUBLIC;
 REVOKE ALL ON FUNCTION manage_create_user(TEXT, TEXT, TEXT) FROM PUBLIC;
 REVOKE ALL ON FUNCTION manage_rename_user(TEXT, UUID, TEXT) FROM PUBLIC;
@@ -338,6 +358,7 @@ REVOKE ALL ON FUNCTION manage_set_password(TEXT, UUID, TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION verify_manage_login(TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION verify_admin_login(TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION manage_logout(TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION manage_list_viewable_users(TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION manage_list_users(TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION manage_create_user(TEXT, TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION manage_rename_user(TEXT, UUID, TEXT) TO anon, authenticated;

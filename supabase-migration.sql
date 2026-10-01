@@ -479,6 +479,28 @@ GRANT EXECUTE ON FUNCTION manage_create_user(TEXT, TEXT, TEXT) TO anon, authenti
 GRANT EXECUTE ON FUNCTION manage_rename_user(TEXT, UUID, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION manage_set_password(TEXT, UUID, TEXT) TO anon, authenticated;
 
+-- 14. 管理画面の閲覧ユーザー一覧（パスワードのあるユーザー＝管理者を除く）
+-- 管理画面で閲覧できるユーザー一覧。パスワードのあるユーザー（管理者）は含めない
+CREATE OR REPLACE FUNCTION manage_list_viewable_users(p_token TEXT)
+RETURNS TABLE (id UUID, username TEXT, created_at TIMESTAMPTZ)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+BEGIN
+  PERFORM manage_session_user(p_token, 'manage');
+  RETURN QUERY
+    SELECT u.id, u.username, u.created_at
+    FROM users u
+    WHERE u.password_hash IS NULL
+    ORDER BY u.username;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION manage_list_viewable_users(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION manage_list_viewable_users(TEXT) TO anon, authenticated;
+
 -- 最初の admin ユーザーの設定（ユーザー名とパスワードを置き換えて SQL Editor で実行）
 -- 以降のユーザー追加・パスワード設定はユーザー管理画面から行える
 -- UPDATE users

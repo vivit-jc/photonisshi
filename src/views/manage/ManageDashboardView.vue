@@ -1,11 +1,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { supabase } from '../../plugins/supabase'
-import { USER_COLUMNS } from '../../composables/useAuth'
+import { useManageAuth } from '../../composables/useManageAuth'
 import { useMessages } from '../../composables/useMessages'
 import UserTimelineColumn from '../../components/manage/UserTimelineColumn.vue'
 import MessageInput from '../../components/manage/MessageInput.vue'
 
+const { manageRpc } = useManageAuth()
 const { sendMessage } = useMessages()
 
 const users = ref([])
@@ -37,11 +37,8 @@ const columnClass = computed(() => {
 
 onMounted(async () => {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select(USER_COLUMNS)
-      .order('username', { ascending: true })
-    if (error) throw error
+    // パスワードのあるユーザー（管理者）は閲覧対象に含めない
+    const data = await manageRpc('manage_list_viewable_users')
     users.value = data
     const saved = localStorage.getItem('manage_selectedUserIds')
     if (saved) {
