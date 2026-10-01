@@ -41,9 +41,14 @@ onMounted(async () => {
   }
 })
 
+// ログインが必要で止めた遷移先。ログイン後にあらためて遷移する
+// （初回の遷移を止めた場合、そのままでは route が初期状態のまま何も表示されない）
+let pendingPath = null
+
 router.beforeEach((to) => {
   if (!to.meta.requiresAuth) return true
   if (!currentUser.value && !loading.value) {
+    pendingPath = to.fullPath
     showLogin.value = true
     return false
   }
@@ -52,6 +57,11 @@ router.beforeEach((to) => {
 
 function onLoggedIn() {
   showLogin.value = false
+  if (pendingPath) {
+    const path = pendingPath
+    pendingPath = null
+    router.push(path)
+  }
 }
 
 function onGoRegister() {
